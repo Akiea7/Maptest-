@@ -21,6 +21,7 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
+            user-select: none; /* لمنع تحديد النصوص أثناء اللعب */
         }
         
         .header {
@@ -83,11 +84,13 @@
             display: flex;
             gap: 15px;
             flex-direction: column;
+            z-index: 10;
         }
         
         .control-row {
             display: flex;
             gap: 15px;
+            justify-content: center;
         }
         
         .control-btn {
@@ -106,7 +109,7 @@
             box-shadow: 0 0 15px rgba(255, 45, 85, 0.5);
         }
         
-        .control-btn:active {
+        .control-btn:active, .control-btn.active {
             transform: scale(0.9);
             background: rgba(255, 45, 85, 0.6);
             box-shadow: 0 0 20px #ff2d55;
@@ -167,32 +170,6 @@
             font-size: 14px;
         }
         
-        .player1-car { border-color: #3498db; }
-        .player2-car { border-color: #e74c3c; }
-        
-        .weapon {
-            position: absolute;
-            width: 12px;
-            height: 35px;
-            background: linear-gradient(to bottom, #f39c12, #e67e22);
-            border-radius: 6px;
-            box-shadow: 0 0 10px #f39c12;
-        }
-        
-        .explosion {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: radial-gradient(circle, #ff9800, #ff5722, transparent);
-            border-radius: 50%;
-            animation: explode 0.6s forwards;
-        }
-        
-        @keyframes explode {
-            0% { transform: scale(0); opacity: 1; }
-            100% { transform: scale(3); opacity: 0; }
-        }
-        
         .hud {
             position: absolute;
             top: 20px;
@@ -233,7 +210,7 @@
         
         .weapon-selector {
             position: absolute;
-            bottom: 120px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -319,8 +296,8 @@
         
         .minimap {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
+            bottom: 120px;
+            right: 20px;
             width: 150px;
             height: 150px;
             background: rgba(0, 0, 0, 0.7);
@@ -331,17 +308,20 @@
         
         .minimap-player {
             position: absolute;
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
+            transform: translate(-50%, -50%);
         }
         
         .player1-minimap {
             background: #3498db;
+            box-shadow: 0 0 5px #3498db;
         }
         
         .player2-minimap {
             background: #e74c3c;
+            box-shadow: 0 0 5px #e74c3c;
         }
         
         .notification {
@@ -406,20 +386,20 @@
             <div class="messages" id="chatMessages">
                 <div class="message">اللاعب 1: استعد للهزيمة!</div>
                 <div class="message">اللاعب 2: هذا سباق، لا رحمة!</div>
-                <div class="message">النظام: بدأ السباق! اجمع الأسلحة ودمر خصمك!</div>
+                <div class="message">النظام: بدأ السباق! استخدم المسطرة (Space) للإطلاق!</div>
             </div>
             <input type="text" id="chatInput" placeholder="اكتب رسالتك..." style="width: 100%; padding: 8px; margin-top: 10px; border-radius: 8px; border: 1px solid #ff2d55; background: rgba(0,0,0,0.5); color: white;">
         </div>
         
         <div class="hud">
             <div class="player-hud">
-                <div class="player-name">اللاعب 1</div>
+                <div class="player-name">اللاعب 1 (أنت)</div>
                 <div class="health-bar">
                     <div class="health-fill" id="player1Health" style="width: 100%;"></div>
                 </div>
             </div>
             <div class="player-hud">
-                <div class="player-name">اللاعب 2</div>
+                <div class="player-name">اللاعب 2 (الخصم)</div>
                 <div class="health-bar">
                     <div class="health-fill" id="player2Health" style="width: 100%;"></div>
                 </div>
@@ -427,28 +407,26 @@
         </div>
         
         <div class="minimap">
-            <div class="minimap-player player1-minimap" id="minimapPlayer1" style="top: 50px; left: 50px;"></div>
-            <div class="minimap-player player2-minimap" id="minimapPlayer2" style="top: 100px; left: 100px;"></div>
+            <div class="minimap-player player1-minimap" id="minimapPlayer1"></div>
+            <div class="minimap-player player2-minimap" id="minimapPlayer2"></div>
         </div>
         
         <div class="weapon-selector">
-            <div class="weapon-option active" data-weapon="machinegun">🔫</div>
-            <div class="weapon-option" data-weapon="missile">🚀</div>
-            <div class="weapon-option" data-weapon="laser">⚡</div>
-            <div class="weapon-option" data-weapon="flamethrower">🔥</div>
+            <div class="weapon-option active" data-weapon="machinegun" title="رشاش">🔫</div>
+            <div class="weapon-option" data-weapon="missile" title="صاروخ">🚀</div>
+            <div class="weapon-option" data-weapon="laser" title="ليزر">⚡</div>
+            <div class="weapon-option" data-weapon="flamethrower" title="قاذف لهب">🔥</div>
         </div>
         
         <div class="game-over" id="gameOverScreen">
-            <h2>انتهى السباق!</h2>
+            <h2 id="winnerText">انتهى السباق!</h2>
             <div class="final-stats">
-                <p id="winnerText">اللاعب 1 فاز!</p>
-                <p>النتيجة النهائية: <span id="finalScore">15-12</span></p>
-                <p>الوقت: 60 ثانية</p>
+                <p>النتيجة النهائية: <span id="finalScore">0-0</span></p>
             </div>
             <button class="restart-btn" id="restartBtn">إعادة اللعبة</button>
         </div>
         
-        <div class="notification" id="notification">تم جمع قوة الشIELD!</div>
+        <div class="notification" id="notification"></div>
     </div>
 
     <script>
@@ -475,6 +453,7 @@
         let gameRunning = true;
         let gameTime = 60;
         let keys = {};
+        
         let player1 = {
             x: 150,
             y: 350,
@@ -485,12 +464,11 @@
             score: 0,
             color: '#3498db',
             angle: 0,
-            weapons: ['machinegun', 'missile'],
+            weapons: ['machinegun', 'missile', 'laser', 'flamethrower'],
             currentWeapon: 'machinegun',
             armor: 0,
             shield: false,
-            lastShot: 0,
-            acceleration: 0
+            lastShot: 0
         };
         
         let player2 = {
@@ -498,7 +476,7 @@
             y: 350,
             width: 50,
             height: 80,
-            speed: 6,
+            speed: 5,
             health: 100,
             score: 0,
             color: '#e74c3c',
@@ -507,8 +485,7 @@
             currentWeapon: 'machinegun',
             armor: 0,
             shield: false,
-            lastShot: 0,
-            acceleration: 0
+            lastShot: 0
         };
         
         let obstacles = [];
@@ -516,15 +493,13 @@
         let weapons = [];
         let explosions = [];
         let particles = [];
-        let effects = [];
-        let trails = [];
         
         // Initialize game
         function initGame() {
             // Create obstacles
-            for (let i = 0; i < 25; i++) {
+            for (let i = 0; i < 20; i++) {
                 obstacles.push({
-                    x: Math.random() * (canvas.width - 60),
+                    x: 200 + Math.random() * (canvas.width - 400),
                     y: Math.random() * (canvas.height - 60),
                     width: 40 + Math.random() * 40,
                     height: 40 + Math.random() * 40,
@@ -535,47 +510,48 @@
             }
             
             // Create power-ups
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < 8; i++) {
                 powerUps.push({
                     x: Math.random() * (canvas.width - 40),
                     y: Math.random() * (canvas.height - 40),
                     width: 40,
                     height: 40,
                     type: ['health', 'speed', 'shield', 'weapon', 'armor', 'boost'][Math.floor(Math.random() * 6)],
-                    color: { 
-                        health: '#2ecc71', 
-                        speed: '#f1c40f', 
-                        shield: '#3498db', 
-                        weapon: '#9b59b6', 
-                        armor: '#7f8c8d',
-                        boost: '#e67e22'
-                    }[powerUps[powerUps.length - 1]?.type || 'health'],
                     rotation: 0,
                     pulse: 0
                 });
             }
             
+            // Set power-ups colors based on type
+            powerUps.forEach(pu => {
+                const colors = { 
+                    health: '#2ecc71', speed: '#f1c40f', shield: '#3498db', 
+                    weapon: '#9b59b6', armor: '#7f8c8d', boost: '#e67e22'
+                };
+                pu.color = colors[pu.type];
+            });
+            
             // Start game timer
             const timer = setInterval(() => {
-                if (!gameRunning) return;
+                if (!gameRunning) {
+                    clearInterval(timer);
+                    return;
+                }
                 
                 gameTime--;
                 timerEl.textContent = gameTime;
                 
                 if (gameTime <= 0) {
-                    clearInterval(timer);
                     endGame();
                 }
             }, 1000);
             
-            // Start game loop
             gameLoop();
         }
         
-        // Draw car with details
         function drawCar(car) {
             ctx.save();
-            ctx.translate(car.x, car.y);
+            ctx.translate(car.x + car.width/2, car.y + car.height/2);
             ctx.rotate(car.angle);
             
             // Car shadow
@@ -595,64 +571,39 @@
             ctx.fillRect(-car.width/2 + 8, -car.height/2 + 8, car.width - 16, 12);
             ctx.fillRect(-car.width/2 + 8, car.height/2 - 20, car.width - 16, 12);
             
-            // Wheels
-            ctx.fillStyle = '#2c3e50';
-            ctx.fillRect(-car.width/2 - 4, -car.height/2 + 8, 4, 12);
-            ctx.fillRect(-car.width/2 - 4, car.height/2 - 20, 4, 12);
-            ctx.fillRect(car.width/2, -car.height/2 + 8, 4, 12);
-            ctx.fillRect(car.width/2, car.height/2 - 20, 4, 12);
-            
-            // Headlights
-            ctx.fillStyle = '#f1c40f';
-            ctx.beginPath();
-            ctx.arc(-car.width/2 + 5, -car.height/2 + 15, 4, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(-car.width/2 + 5, car.height/2 - 15, 4, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Shield effect if active
+            // Shield effect
             if (car.shield) {
-                ctx.strokeStyle = 'rgba(52, 152, 219, 0.7)';
-                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(52, 152, 219, 0.8)';
+                ctx.lineWidth = 4;
                 ctx.beginPath();
-                ctx.arc(0, 0, car.width, 0, Math.PI * 2);
+                ctx.arc(0, 0, car.height * 0.7, 0, Math.PI * 2);
                 ctx.stroke();
             }
             
             ctx.restore();
         }
         
-        // Draw obstacle
         function drawObstacle(obs) {
             ctx.save();
             ctx.translate(obs.x + obs.width/2, obs.y + obs.height/2);
             ctx.rotate(obs.rotation);
-            
             ctx.fillStyle = obs.color;
             ctx.fillRect(-obs.width/2, -obs.height/2, obs.width, obs.height);
-            
-            // Add pattern to obstacle
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
             ctx.lineWidth = 3;
             ctx.strokeRect(-obs.width/2, -obs.height/2, obs.width, obs.height);
-            
             ctx.restore();
-            
             obs.rotation += obs.spinSpeed;
         }
         
-        // Draw power-up with animation
         function drawPowerUp(pu) {
             ctx.save();
             ctx.translate(pu.x + pu.width/2, pu.y + pu.height/2);
             ctx.rotate(pu.rotation);
-            pu.rotation += 0.1;
+            pu.rotation += 0.05;
             
-            // Pulsing effect
-            const pulseScale = 1 + Math.sin(pu.pulse) * 0.2;
+            const pulseScale = 1 + Math.sin(pu.pulse) * 0.15;
             pu.pulse += 0.1;
-            
             ctx.scale(pulseScale, pulseScale);
             
             ctx.fillStyle = pu.color;
@@ -660,45 +611,38 @@
             ctx.arc(0, 0, pu.width/2, 0, Math.PI * 2);
             ctx.fill();
             
-            // Draw icon based on type
-            ctx.font = '24px Arial';
+            ctx.font = '20px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = 'white';
             
-            switch(pu.type) {
-                case 'health': ctx.fillText('❤️', 0, 0); break;
-                case 'speed': ctx.fillText('⚡', 0, 0); break;
-                case 'shield': ctx.fillText('🛡️', 0, 0); break;
-                case 'weapon': ctx.fillText('🔫', 0, 0); break;
-                case 'armor': ctx.fillText('🛡', 0, 0); break;
-                case 'boost': ctx.fillText('🚀', 0, 0); break;
-            }
+            const icons = {
+                health: '❤️', speed: '⚡', shield: '🛡️', 
+                weapon: '🔫', armor: '🛡', boost: '🚀'
+            };
+            ctx.fillText(icons[pu.type], 0, 0);
             
             ctx.restore();
         }
         
-        // Draw weapon projectile
         function drawWeapon(wep) {
             ctx.fillStyle = wep.color;
             ctx.fillRect(wep.x, wep.y, wep.width, wep.height);
-            
-            // Add glow effect
             ctx.shadowColor = wep.color;
             ctx.shadowBlur = 10;
             ctx.fillRect(wep.x, wep.y, wep.width, wep.height);
             ctx.shadowBlur = 0;
         }
         
-        // Draw explosion
         function drawExplosion(exp) {
             ctx.fillStyle = exp.color;
+            ctx.globalAlpha = exp.alpha;
             ctx.beginPath();
             ctx.arc(exp.x, exp.y, exp.radius, 0, Math.PI * 2);
             ctx.fill();
+            ctx.globalAlpha = 1;
         }
         
-        // Draw particle
         function drawParticle(p) {
             ctx.fillStyle = p.color;
             ctx.globalAlpha = p.alpha;
@@ -708,316 +652,193 @@
             ctx.globalAlpha = 1;
         }
         
-        // Draw trail behind cars
-        function drawTrail(trail) {
-            for (let i = 0; i < trail.points.length; i++) {
-                const point = trail.points[i];
-                const alpha = i / trail.points.length;
-                ctx.fillStyle = `rgba(${trail.r}, ${trail.g}, ${trail.b}, ${alpha})`;
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, point.size * alpha, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-        
-        // Draw background
         function drawBackground() {
-            // Gradient background
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
             gradient.addColorStop(0, '#0a0e1a');
             gradient.addColorStop(1, '#1a1a2e');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw road markings
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
             ctx.lineWidth = 3;
             ctx.setLineDash([20, 30]);
-            
             for (let y = 0; y < canvas.height; y += 100) {
                 ctx.beginPath();
                 ctx.moveTo(0, y);
                 ctx.lineTo(canvas.width, y);
                 ctx.stroke();
             }
-            
             ctx.setLineDash([]);
-            
-            // Draw grid
-            ctx.strokeStyle = 'rgba(100, 100, 255, 0.1)';
-            ctx.lineWidth = 1;
-            
-            for (let x = 0; x < canvas.width; x += 50) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-                ctx.stroke();
-            }
-            
-            for (let y = 0; y < canvas.height; y += 50) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-                ctx.stroke();
-            }
         }
         
-        // Update game state
         function update() {
             if (!gameRunning) return;
             
-            // Move player 1 (with keyboard controls)
+            // Player 1 Movement
             if (keys['ArrowUp'] && player1.y > 0) player1.y -= player1.speed;
             if (keys['ArrowDown'] && player1.y < canvas.height - player1.height) player1.y += player1.speed;
             if (keys['ArrowLeft'] && player1.x > 0) {
                 player1.x -= player1.speed;
-                player1.angle = Math.PI; // Left
+                player1.angle = -Math.PI / 2;
             }
             if (keys['ArrowRight'] && player1.x < canvas.width - player1.width) {
                 player1.x += player1.speed;
-                player1.angle = 0; // Right
+                player1.angle = Math.PI / 2;
+            }
+            // Reset angle if moving vertically
+            if ((keys['ArrowUp'] || keys['ArrowDown']) && !keys['ArrowLeft'] && !keys['ArrowRight']) {
+                player1.angle = keys['ArrowDown'] ? Math.PI : 0;
             }
             
-            // Move player 2 (AI for demo purposes)
+            // Player 2 (Simple AI)
+            if (Math.random() > 0.6) {
+                if (player2.y < player1.y && player2.y < canvas.height - player2.height) { player2.y += player2.speed; player2.angle = Math.PI; }
+                else if (player2.y > player1.y && player2.y > 0) { player2.y -= player2.speed; player2.angle = 0; }
+            }
             if (Math.random() > 0.7) {
-                if (player2.y < player1.y && player2.y < canvas.height - player2.height) player2.y += player2.speed;
-                else if (player2.y > player1.y && player2.y > 0) player2.y -= player2.speed;
+                if (player2.x < player1.x && player2.x < canvas.width - player2.width) player2.x += player2.speed;
+                else if (player2.x > player1.x && player2.x > 0) player2.x -= player2.speed;
             }
             
-            if (Math.random() > 0.8) {
-                if (player2.x < player1.x && player2.x < canvas.width - player2.width) {
-                    player2.x += player2.speed;
-                    player2.angle = 0; // Right
-                } else if (player2.x > player1.x && player2.x > 0) {
-                    player2.x -= player2.speed;
-                    player2.angle = Math.PI; // Left
-                }
-            }
+            // AI Shooting
+            if (Math.random() > 0.96) shoot(player2, player1);
             
-            // Player shooting (for demo)
-            if (Math.random() > 0.95) {
-                shoot(player2, player1);
-            }
-            
-            // Check collisions with obstacles
+            // Check Obstacles
             for (const obs of obstacles) {
-                if (
-                    player1.x < obs.x + obs.width &&
-                    player1.x + player1.width > obs.x &&
-                    player1.y < obs.y + obs.height &&
-                    player1.y + player1.height > obs.y
-                ) {
-                    player1.health -= 5;
+                if (checkCollision(player1, obs)) {
+                    player1.health -= 0.5;
                     createExplosion(player1.x + player1.width/2, player1.y + player1.height/2, '#e74c3c');
                 }
-                
-                if (
-                    player2.x < obs.x + obs.width &&
-                    player2.x + player2.width > obs.x &&
-                    player2.y < obs.y + obs.height &&
-                    player2.y + player2.height > obs.y
-                ) {
-                    player2.health -= 5;
-                    createExplosion(player2.x + player2.width/2, player2.y + player2.height/2, '#e74c3c');
+                if (checkCollision(player2, obs)) {
+                    player2.health -= 0.5;
                 }
             }
             
-            // Check collisions with power-ups
+            // Power-ups collection
             for (let i = powerUps.length - 1; i >= 0; i--) {
                 const pu = powerUps[i];
-                
-                if (
-                    player1.x < pu.x + pu.width &&
-                    player1.x + player1.width > pu.x &&
-                    player1.y < pu.y + pu.height &&
-                    player1.y + player1.height > pu.y
-                ) {
+                if (checkCollision(player1, pu)) {
                     applyPowerUp(player1, pu);
-                    showNotification(`تم جمع ${pu.type}`);
+                    showNotification(`حصلت على ${pu.type}!`);
                     powerUps.splice(i, 1);
-                }
-                
-                if (
-                    player2.x < pu.x + pu.width &&
-                    player2.x + player2.width > pu.x &&
-                    player2.y < pu.y + pu.height &&
-                    player2.y + player2.height > pu.y
-                ) {
+                } else if (checkCollision(player2, pu)) {
                     applyPowerUp(player2, pu);
                     powerUps.splice(i, 1);
                 }
             }
             
-            // Update weapons
+            // Weapons Update
             for (let i = weapons.length - 1; i >= 0; i--) {
                 const wep = weapons[i];
                 wep.x += wep.speedX;
                 wep.y += wep.speedY;
                 
-                // Remove if out of bounds
                 if (wep.x < 0 || wep.x > canvas.width || wep.y < 0 || wep.y > canvas.height) {
                     weapons.splice(i, 1);
                     continue;
                 }
                 
-                // Check collision with players
-                if (
-                    wep.x < player1.x + player1.width &&
-                    wep.x + wep.width > player1.x &&
-                    wep.y < player1.y + player1.height &&
-                    wep.y + wep.height > player1.y
-                ) {
-                    if (!player1.shield) {
-                        player1.health -= wep.damage;
-                    }
+                // التأكد من أن اللاعب لا يضرب نفسه
+                if (wep.owner !== player1 && checkCollisionWeapon(wep, player1)) {
+                    if (!player1.shield) player1.health -= wep.damage;
                     createExplosion(wep.x, wep.y, '#f39c12');
                     weapons.splice(i, 1);
                     continue;
                 }
                 
-                if (
-                    wep.x < player2.x + player2.width &&
-                    wep.x + wep.width > player2.x &&
-                    wep.y < player2.y + player2.height &&
-                    wep.y + wep.height > player2.y
-                ) {
-                    if (!player2.shield) {
-                        player2.health -= wep.damage;
-                    }
+                if (wep.owner !== player2 && checkCollisionWeapon(wep, player2)) {
+                    if (!player2.shield) player2.health -= wep.damage;
                     createExplosion(wep.x, wep.y, '#f39c12');
+                    player1.score += 10;
                     weapons.splice(i, 1);
                     continue;
                 }
             }
             
-            // Update explosions
+            // Update Explosions & Particles
             for (let i = explosions.length - 1; i >= 0; i--) {
-                const exp = explosions[i];
-                exp.radius += 1.5;
-                exp.alpha -= 0.03;
-                
-                if (exp.alpha <= 0) {
-                    explosions.splice(i, 1);
-                }
+                explosions[i].radius += 1.5;
+                explosions[i].alpha -= 0.05;
+                if (explosions[i].alpha <= 0) explosions.splice(i, 1);
             }
             
-            // Update particles
             for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.alpha -= 0.02;
-                
-                if (p.alpha <= 0) {
-                    particles.splice(i, 1);
-                }
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].alpha -= 0.03;
+                if (particles[i].alpha <= 0) particles.splice(i, 1);
             }
             
-            // Update scores
+            // Update UI
             player1ScoreEl.textContent = player1.score;
             player2ScoreEl.textContent = player2.score;
             
-            // Update health bars
-            player1HealthEl.style.width = `${player1.health}%`;
-            player2HealthEl.style.width = `${player2.health}%`;
+            // حماية من نزول الدم تحت الصفر
+            player1HealthEl.style.width = `${Math.max(0, player1.health)}%`;
+            player2HealthEl.style.width = `${Math.max(0, player2.health)}%`;
             
-            // Update minimap positions
+            // Minimap Update
             minimapPlayer1.style.left = `${(player1.x / canvas.width) * 150}px`;
             minimapPlayer1.style.top = `${(player1.y / canvas.height) * 150}px`;
-            
             minimapPlayer2.style.left = `${(player2.x / canvas.width) * 150}px`;
             minimapPlayer2.style.top = `${(player2.y / canvas.height) * 150}px`;
             
-            // Check if game over
-            if (player1.health <= 0 || player2.health <= 0) {
-                endGame();
-            }
+            if (player1.health <= 0 || player2.health <= 0) endGame();
         }
         
-        // Apply power-up effect
+        function checkCollision(obj1, obj2) {
+            return obj1.x < obj2.x + obj2.width &&
+                   obj1.x + obj1.width > obj2.x &&
+                   obj1.y < obj2.y + obj2.height &&
+                   obj1.y + obj1.height > obj2.y;
+        }
+
+        function checkCollisionWeapon(wep, player) {
+            return wep.x < player.x + player.width &&
+                   wep.x + wep.width > player.x &&
+                   wep.y < player.y + player.height &&
+                   wep.y + wep.height > player.y;
+        }
+        
         function applyPowerUp(player, powerUp) {
             switch(powerUp.type) {
-                case 'health':
-                    player.health = Math.min(100, player.health + 30);
+                case 'health': player.health = Math.min(100, player.health + 30); break;
+                case 'speed': 
+                    player.speed += 3; 
+                    setTimeout(() => player.speed -= 3, 5000); 
                     break;
-                case 'speed':
-                    player.speed += 2;
-                    setTimeout(() => player.speed -= 2, 8000); // Temporary boost
-                    break;
-                case 'shield':
-                    player.shield = true;
-                    setTimeout(() => player.shield = false, 10000);
-                    break;
-                case 'weapon':
-                    const newWeapon = ['machinegun', 'missile', 'laser', 'flamethrower'][Math.floor(Math.random() * 4)];
-                    if (!player.weapons.includes(newWeapon)) {
-                        player.weapons.push(newWeapon);
-                    }
-                    break;
-                case 'armor':
-                    player.armor += 20;
-                    break;
-                case 'boost':
-                    player.acceleration = 5;
-                    setTimeout(() => player.acceleration = 0, 5000);
+                case 'shield': 
+                    player.shield = true; 
+                    setTimeout(() => player.shield = false, 8000); 
                     break;
             }
         }
         
-        // Create explosion effect
         function createExplosion(x, y, color) {
-            explosions.push({
-                x: x,
-                y: y,
-                radius: 5,
-                alpha: 1,
-                color: color
-            });
-            
-            // Create particles
-            for (let i = 0; i < 30; i++) {
+            explosions.push({ x, y, radius: 5, alpha: 1, color });
+            for (let i = 0; i < 20; i++) {
                 particles.push({
-                    x: x,
-                    y: y,
-                    size: Math.random() * 6 + 2,
-                    color: color,
-                    vx: (Math.random() - 0.5) * 12,
-                    vy: (Math.random() - 0.5) * 12,
-                    alpha: 1
+                    x, y, size: Math.random() * 4 + 2, color,
+                    vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, alpha: 1
                 });
             }
         }
         
-        // Player shooting
         function shoot(player, target) {
-            if (Date.now() - player.lastShot < 200) return; // Rate limit
-            
+            if (Date.now() - player.lastShot < 250) return; 
             player.lastShot = Date.now();
             
-            const speed = 12;
-            let damage = 20;
+            // تم تحويل const إلى let لإصلاح الخطأ
+            let speed = 15; 
+            let damage = 10;
             let color = player.color;
             
-            // Adjust based on weapon
             switch(player.currentWeapon) {
-                case 'missile':
-                    speed = 8;
-                    damage = 35;
-                    color = '#9b59b6';
-                    break;
-                case 'laser':
-                    speed = 15;
-                    damage = 25;
-                    color = '#f1c40f';
-                    break;
-                case 'flamethrower':
-                    speed = 10;
-                    damage = 15;
-                    color = '#e67e22';
-                    break;
+                case 'missile': speed = 8; damage = 30; color = '#9b59b6'; break;
+                case 'laser': speed = 20; damage = 15; color = '#f1c40f'; break;
+                case 'flamethrower': speed = 12; damage = 5; color = '#e67e22'; break;
             }
             
-            // Calculate direction to target
             const angle = Math.atan2(
                 target.y + target.height/2 - (player.y + player.height/2),
                 target.x + target.width/2 - (player.x + player.width/2)
@@ -1026,97 +847,73 @@
             weapons.push({
                 x: player.x + player.width/2,
                 y: player.y + player.height/2,
-                width: 12,
-                height: 6,
+                width: 10, height: 10,
                 speedX: Math.cos(angle) * speed,
                 speedY: Math.sin(angle) * speed,
-                damage: damage,
-                color: color
+                damage: damage, color: color,
+                owner: player // إضافة المالك لتجنب الضرر الذاتي
             });
         }
         
-        // Show notification
         function showNotification(text) {
             notification.textContent = text;
             notification.style.display = 'block';
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 2000);
+            setTimeout(() => notification.style.display = 'none', 2000);
         }
         
-        // Draw everything
         function draw() {
-            // Draw background
             drawBackground();
-            
-            // Draw obstacles
             obstacles.forEach(drawObstacle);
-            
-            // Draw power-ups
             powerUps.forEach(drawPowerUp);
-            
-            // Draw players
             drawCar(player1);
             drawCar(player2);
-            
-            // Draw weapons
             weapons.forEach(drawWeapon);
-            
-            // Draw explosions
             explosions.forEach(drawExplosion);
-            
-            // Draw particles
             particles.forEach(drawParticle);
-            
-            // Draw finish line
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.fillRect(canvas.width - 30, 0, 30, canvas.height);
         }
         
-        // Game loop
         function gameLoop() {
             update();
             draw();
-            if (gameRunning) {
-                requestAnimationFrame(gameLoop);
-            }
+            if (gameRunning) requestAnimationFrame(gameLoop);
         }
         
-        // End game
         function endGame() {
             gameRunning = false;
-            const winner = player1.health > player2.health ? "اللاعب 1" : "اللاعب 2";
-            winnerText.textContent = `${winner} فاز!`;
-            finalScore.textContent = `${player1.score}-${player2.score}`;
+            let resultTxt = "";
+            if (player1.health <= 0 && player2.health <= 0) resultTxt = "تعادل!";
+            else if (player1.health <= 0) resultTxt = "اللاعب 2 (الخصم) فاز!";
+            else if (player2.health <= 0) resultTxt = "أنت فزت!";
+            else resultTxt = player1.score > player2.score ? "أنت فزت بالنقاط!" : "الخصم فاز بالنقاط!";
+            
+            winnerText.textContent = resultTxt;
+            finalScore.textContent = `${player1.score} - ${player2.score}`;
             gameOverScreen.style.display = 'flex';
         }
         
-        // Event listeners
+        // --- إعدادات التحكم ---
         window.addEventListener('keydown', (e) => {
             keys[e.key] = true;
-            
-            // Shooting with spacebar
-            if (e.key === ' ' && gameRunning) {
-                shoot(player1, player2);
-            }
+            if (e.key === ' ' && gameRunning) shoot(player1, player2);
         });
+        window.addEventListener('keyup', (e) => keys[e.key] = false);
         
-        window.addEventListener('keyup', (e) => {
-            keys[e.key] = false;
-        });
+        // دالة مساعدة لربط أزرار الشاشة باللمس والماوس
+        const bindButton = (btnId, keyName) => {
+            const btn = document.getElementById(btnId);
+            // للموبايل (لمس)
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; btn.classList.add('active'); });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('active'); });
+            // للكمبيوتر (ماوس)
+            btn.addEventListener('mousedown', () => { keys[keyName] = true; btn.classList.add('active'); });
+            btn.addEventListener('mouseup', () => { keys[keyName] = false; btn.classList.remove('active'); });
+            btn.addEventListener('mouseleave', () => { keys[keyName] = false; btn.classList.remove('active'); });
+        };
         
-        // Touch controls for mobile
-        document.getElementById('upBtn').addEventListener('touchstart', () => keys['ArrowUp'] = true);
-        document.getElementById('upBtn').addEventListener('touchend', () => keys['ArrowUp'] = false);
-        
-        document.getElementById('downBtn').addEventListener('touchstart', () => keys['ArrowDown'] = true);
-        document.getElementById('downBtn').addEventListener('touchend', () => keys['ArrowDown'] = false);
-        
-        document.getElementById('leftBtn').addEventListener('touchstart', () => keys['ArrowLeft'] = true);
-        document.getElementById('leftBtn').addEventListener('touchend', () => keys['ArrowLeft'] = false);
-        
-        document.getElementById('rightBtn').addEventListener('touchstart', () => keys['ArrowRight'] = true);
-        document.getElementById('rightBtn').addEventListener('touchend', () => keys['ArrowRight'] = false);
+        bindButton('upBtn', 'ArrowUp');
+        bindButton('downBtn', 'ArrowDown');
+        bindButton('leftBtn', 'ArrowLeft');
+        bindButton('rightBtn', 'ArrowRight');
         
         // Weapon selection
         document.querySelectorAll('.weapon-option').forEach(btn => {
@@ -1129,30 +926,20 @@
         
         // Chat functionality
         chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const message = chatInput.value.trim();
-                if (message) {
-                    const messagesContainer = document.querySelector('.messages');
-                    const messageElement = document.createElement('div');
-                    messageElement.className = 'message';
-                    messageElement.textContent = `أنا: ${message}`;
-                    messagesContainer.appendChild(messageElement);
-                    chatInput.value = '';
-                    
-                    // Scroll to bottom
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                }
+            if (e.key === 'Enter' && chatInput.value.trim() !== '') {
+                const msgs = document.getElementById('chatMessages');
+                const div = document.createElement('div');
+                div.className = 'message';
+                div.textContent = `أنت: ${chatInput.value.trim()}`;
+                msgs.appendChild(div);
+                msgs.scrollTop = msgs.scrollHeight;
+                chatInput.value = '';
             }
         });
         
-        // Restart button
-        restartBtn.addEventListener('click', () => {
-            location.reload();
-        });
+        restartBtn.addEventListener('click', () => location.reload());
         
-        // Initialize and start game
         initGame();
     </script>
 </body>
 </html>
-
