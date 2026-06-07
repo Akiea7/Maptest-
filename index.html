@@ -1,39 +1,41 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr"> <head>
+<html lang="en" dir="ltr">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doctor Faustus | Presentation</title>
+    <title>Doctor Faustus | Cinematic</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
 </head>
 <body>
 
-    <div id="presentation-container">
-
-        <section class="slide active" id="slide-1">
-            <div class="overlay"></div>
-            <div class="hero-content">
-                <p class="subtitle">A Masterpiece by Christopher Marlowe</p>
-                <h1 class="main-title">Doctor Faustus</h1>
-                <p class="tagline">How far would you go for infinite knowledge... if the price was your soul?</p>
-                <p class="click-hint">(Click anywhere to begin)</p>
-            </div>
-        </section>
-
-        <section class="slide" id="slide-2">
-            <div class="content-wrapper">
-                <h2 class="section-title">The Blood Pact</h2>
-                <div class="parchment">
-                    <p class="pact-text">"I, John Faustus of Wittenberg, Doctor, by these presents, do give both body and soul to Lucifer..."</p>
-                    <p class="pact-text">For four and twenty years, to live in all voluptuousness, with Mephistopheles as my servant.</p>
-                    <p class="pact-text highlight-blood">But what is the true price of infinite knowledge?</p>
-                </div>
-            </div>
-        </section>
-
+    <div class="fixed-background">
+        <div class="glow"></div>
     </div>
+
+    <section class="panel hero">
+        <div class="content">
+            <p class="subtitle">A Masterpiece by Christopher Marlowe</p>
+            <h1 class="main-title">Doctor Faustus</h1>
+            <p class="tagline">Scroll slowly to descend into darkness...</p>
+        </div>
+    </section>
+
+    <section class="panel pact">
+        <div class="content">
+            <h2 class="section-title">The Blood Pact</h2>
+            <div class="parchment">
+                <p class="pact-text">"I, John Faustus of Wittenberg..."</p>
+                <p class="pact-text">...do give both body and soul to Lucifer.</p>
+                <p class="pact-text highlight-blood">The price of infinite knowledge.</p>
+            </div>
+        </div>
+    </section>
 
     <script src="script.js"></script>
 </body>
