@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - ستايل الخريطة النهائي</title>
+    <title>تطبيق ALAK - ستايل بلي الاحترافي (نسخة الماستر)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -24,7 +24,7 @@
 
     <div id="map"></div>
 
-    <!-- حقوق تطبيق ALAK والخريطة (تم رفعها للأعلى وضبط الاتجاه) -->
+    <!-- حقوق تطبيق ALAK والخريطة -->
     <div class="absolute bottom-12 left-4 z-30 text-[11px] text-gray-500 font-sans leading-snug pointer-events-none select-none drop-shadow-sm flex flex-col items-start" dir="ltr">
         <div class="font-semibold text-gray-600">© ALAK</div>
         <div>© OpenStreetMap</div>
@@ -61,54 +61,85 @@
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
-        map.on('load', () => {
-            const layers = map.getStyle().layers;
-            
+        // ==========================================
+        // تنظيم الكود بدوال منفصلة (حسب نصيحة صديقك)
+        // ==========================================
+
+        function applyMapStyling(mapInstance) {
+            const layers = mapInstance.getStyle().layers;
+
             layers.forEach(layer => {
                 try {
-                    // الخلفية والمباني
-                    if (layer.id.includes('background')) {
-                        map.setPaintProperty(layer.id, 'background-color', '#EBEBEB');
+                    const id = layer.id;
+
+                    // 1. الخلفية والمياه والحدائق
+                    if (id.includes('background')) {
+                        mapInstance.setPaintProperty(id, 'background-color', '#EBEBEB');
                     } 
-                    else if (layer.id.includes('building')) {
-                        map.setPaintProperty(layer.id, 'fill-color', '#E3E3E3');
+                    else if (id.includes('water')) {
+                        mapInstance.setPaintProperty(id, 'fill-color', '#D8EAFB');
+                    }
+                    else if (id.includes('park') || id.includes('green') || id.includes('pitch')) {
+                        mapInstance.setPaintProperty(id, 'fill-color', '#DCEFD7');
                     }
 
-                    // إدارة الشوارع
-                    else if (layer.type === 'line' && (layer.id.includes('highway') || layer.id.includes('road') || layer.id.includes('bridge') || layer.id.includes('tunnel'))) {
-                        
-                        const isMinorRoad = layer.id.includes('minor') || 
-                                            layer.id.includes('residential') || 
-                                            layer.id.includes('service') || 
-                                            layer.id.includes('unclassified') || 
-                                            layer.id.includes('path') || 
-                                            layer.id.includes('pedestrian');
+                    // 2. المباني (اللون الجديد المقترح #F2EEE8)
+                    else if (id.includes('building')) {
+                        mapInstance.setPaintProperty(id, 'fill-color', '#F2EEE8');
+                    }
 
-                        const isCasing = layer.id.includes('case') || 
-                                         layer.id.includes('casing') || 
-                                         layer.id.includes('outline') || 
-                                         layer.id.includes('bg') || 
-                                         layer.id.includes('border') || 
-                                         layer.id.includes('shadow');
+                    // 3. إخفاء الـ POI المزعجة (محلات، مدارس، إلخ) للحفاظ على نظافة الخريطة
+                    else if (id.includes('poi') || id.includes('landuse_overlay') || id.includes('amenity')) {
+                        if (mapInstance.getLayer(id)) {
+                            mapInstance.setLayoutProperty(id, 'visibility', 'none');
+                        }
+                    }
+
+                    // 4. تطبيق الخط العربي Noto Sans Arabic على النصوص
+                    else if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+                        mapInstance.setLayoutProperty(id, 'text-font', ['Noto Sans Arabic Regular', 'Open Sans Regular']);
+                    }
+
+                    // 5. هندسة الشوارع المتقدمة (Road Hierarchy & Casing)
+                    else if (layer.type === 'line' && (id.includes('highway') || id.includes('road') || id.includes('bridge') || id.includes('tunnel'))) {
+                        
+                        const isMinorRoad = id.includes('minor') || 
+                                            id.includes('residential') || 
+                                            id.includes('service') || 
+                                            id.includes('unclassified') || 
+                                            id.includes('path') || 
+                                            id.includes('pedestrian');
+
+                        const isCasing = id.includes('case') || 
+                                         id.includes('casing') || 
+                                         id.includes('outline') || 
+                                         id.includes('bg') || 
+                                         id.includes('border') || 
+                                         id.includes('shadow');
 
                         if (isMinorRoad) {
                             if (isCasing) {
-                                map.setPaintProperty(layer.id, 'line-color', '#EBEBEB'); 
+                                mapInstance.setPaintProperty(id, 'line-color', '#EBEBEB'); 
                             } else {
-                                map.setPaintProperty(layer.id, 'line-color', '#FFFFFF'); 
+                                mapInstance.setPaintProperty(id, 'line-color', '#FFFFFF'); // فرعية بيضاء
                             }
                         } else {
                             if (isCasing) {
-                                map.setPaintProperty(layer.id, 'line-color', '#8B95A5'); 
+                                mapInstance.setPaintProperty(id, 'line-color', '#E6E6E6'); // تحديد هادئ
                             } else {
-                                map.setPaintProperty(layer.id, 'line-color', '#D0D9E0'); 
+                                mapInstance.setPaintProperty(id, 'line-color', '#F7F8FA'); // رئيسية بلون ناعم
                             }
                         }
                     }
-                } catch (error) {
-                    // نتجاهل الطبقات الممانعة
+                } catch (e) {
+                    // تتبع الأخطاء بدقة لمعرفة أي طبقة لم تقبل التعديل (حسب نصيحة صديقك)
+                    console.warn(`Layer failed: ${layer.id}`, e);
                 }
             });
+        }
+
+        map.on('load', () => {
+            applyMapStyling(map);
         });
 
     </script>
