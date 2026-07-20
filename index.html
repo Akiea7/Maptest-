@@ -3,28 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تجارب خريطة ألك - الأساس النظيف</title>
+    <title>تجارب خريطة ألك - نظام الأماكن والأداء</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- MapLibre -->
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-
-    <!-- خط Noto Sans Arabic -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- مكتبة الأيقونات -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
-        
-        /* لون الخلفية الاحترافي (المرحلة 6) */
         #map { position: absolute; top: 0; bottom: 0; width: 100%; background-color: #FAFAFA; }
         
-        /* حركة الدبوس الناعمة (المرحلة 5) */
         .bounce-marker {
             transform: translate(-50%, -80%) scale(1.05) !important;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* ستايل الأماكن الخاصة بتطبيق ألك */
+        .alak-poi {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 0; /* مخفية بالبداية لحد ما نقيس الزووم */
+            pointer-events: none;
+        }
+        .alak-poi.visible {
+            opacity: 1;
+            pointer-events: auto;
         }
     </style>
 </head>
@@ -32,18 +38,12 @@
 
     <div id="map"></div>
 
-    <!-- دبوس منصة "ألك" (حسب مقاسات المرحلة السادسة: 34px وظل 14px) -->
+    <!-- دبوس منصة "ألك" -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
-        
-        <!-- الدائرة -->
         <div class="w-[34px] h-[34px] bg-[#FF6B00] rounded-full border-[3px] border-white shadow-sm flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
         </div>
-        
-        <!-- العصا -->
         <div class="w-[2.5px] h-[22px] bg-[#4a4a4a] -mt-1 z-0 relative"></div>
-        
-        <!-- الظل -->
         <div class="w-[14px] h-[6px] bg-black rounded-[50%] -mt-1 z-0" style="opacity: 0.18; filter: blur(3px);"></div>
     </div>
 
@@ -56,29 +56,97 @@
             true 
         );
 
-        // الخريطة الأساسية
         const map = new maplibregl.Map({
             container: 'map',
-            // نستخدم ستايل Backdrop كبداية لأنه الأهدأ والأقرب للرصاصيات
             style: `https://api.maptiler.com/maps/backdrop/style.json?key=${MAPTILER_KEY}`,
             center: [44.3783246, 33.6668412], // الطارمية
-            zoom: 17.6, // زووم احترافي
-            bearing: 18, // انحراف مريح للعين
+            zoom: 17.6,
+            bearing: 18,
             pitch: 0,
-            antialias: true, // حواف ناعمة بـ 60fps
+            antialias: true,
             attributionControl: false
         });
 
-        // حركة الدبوس الناعمة بدون مشاكل التجميد
+        // حركة الدبوس المركزية
         const centerMarker = document.getElementById('center-marker');
-        
-        map.on('movestart', () => {
-            centerMarker.classList.add('bounce-marker');
+        map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
+        map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
+
+        // ==========================================
+        // المرحلة 3 و 4: قاعدة بيانات ألك والأيقونات
+        // ==========================================
+        const ALAK_DB = [
+            { id: 1, type: 'restaurant', name: 'مطعم الضيافة', lat: 33.6670, lng: 44.3790, icon: 'utensils', color: '#EF4444' }, // أحمر
+            { id: 2, type: 'pharmacy', name: 'صيدلية الشفاء', lat: 33.6662, lng: 44.3775, icon: 'pill', color: '#10B981' }, // أخضر
+            { id: 3, type: 'market', name: 'أسواق الرسول', lat: 33.6678, lng: 44.3780, icon: 'shopping-cart', color: '#3B82F6' } // أزرق
+        ];
+
+        const markersObjects = [];
+
+        // زرع الأماكن بالخريطة
+        ALAK_DB.forEach(place => {
+            const el = document.createElement('div');
+            el.className = 'alak-poi cursor-pointer hover:scale-110';
+            
+            // تصميم الأيقونة الدائرية (نظيف واحترافي)
+            el.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center relative group">
+                    <i data-lucide="${place.icon}" class="w-4 h-4" style="color: ${place.color}"></i>
+                    
+                    <!-- اسم المكان يظهر من تضغط عليه أو تخلي الماوس (مستقبلاً) -->
+                    <div class="absolute -bottom-6 bg-white px-2 py-0.5 rounded shadow-sm text-[10px] text-gray-600 font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                        ${place.name}
+                    </div>
+                </div>
+            `;
+
+            const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+                .setLngLat([place.lng, place.lat])
+                .addTo(map);
+            
+            markersObjects.push({ element: el, data: place });
         });
 
-        map.on('moveend', () => {
-            centerMarker.classList.remove('bounce-marker');
-        });
+        lucide.createIcons();
+
+        // ==========================================
+        // المرحلة 8: الأداء وإدارة مستوى الزووم
+        // ==========================================
+        function updatePOIsVisibility() {
+            const currentZoom = map.getZoom();
+            
+            markersObjects.forEach(marker => {
+                const el = marker.element;
+                const type = marker.data.type;
+                
+                // تطبيق شروط صديقك الذهبية للأداء
+                if (currentZoom < 15) {
+                    // زوم بعيد جداً -> إخفاء الكل
+                    el.classList.remove('visible');
+                } 
+                else if (currentZoom >= 15 && currentZoom < 16) {
+                    // إظهار المطاعم فقط
+                    if (type === 'restaurant') el.classList.add('visible');
+                    else el.classList.remove('visible');
+                }
+                else if (currentZoom >= 16 && currentZoom < 17) {
+                    // إظهار المطاعم والصيدليات
+                    if (type === 'restaurant' || type === 'pharmacy') el.classList.add('visible');
+                    else el.classList.remove('visible');
+                }
+                else if (currentZoom >= 17) {
+                    // زوم قريب -> إظهار كل الأماكن
+                    el.classList.add('visible');
+                }
+            });
+        }
+
+        // تشغيل فحص الزووم عند تحريك الخريطة
+        map.on('zoom', updatePOIsVisibility);
+        
+        // تشغيلها أول مرة تفتح بيها الخريطة
+        map.on('load', updatePOIsVisibility);
+
     </script>
 </body>
 </html>
