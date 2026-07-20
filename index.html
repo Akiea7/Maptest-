@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ألك - خريطة مخصصة</title>
+    <title>تطبيق ألك - ستايل بلي الأنيق</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; background-color: #FAFAFA;}
+        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
         
         .bounce-marker {
@@ -24,7 +24,7 @@
 
     <div id="map"></div>
 
-    <!-- دبوس المنتصف -->
+    <!-- دبوس ألك الاحترافي -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         <div class="w-[34px] h-[34px] bg-[#FF6B00] rounded-full border-[3px] border-white shadow-sm flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
@@ -40,11 +40,10 @@
             true 
         );
 
-        // المحرك والستايل الجاهز
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'https://tiles.openfreemap.org/styles/liberty', // الستايل اللي طلبه صديقك
-            center: [44.3783246, 33.6668412], 
+            style: 'https://tiles.openfreemap.org/styles/liberty', 
+            center: [44.3783246, 33.6668412], // الطارمية
             zoom: 17.6,
             bearing: 18,
             pitch: 0,
@@ -57,16 +56,44 @@
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
-        // التعديل البرمجي (المرحلة 2 من خطة صديقك)
+        // السحر هنا: تعديل الألوان لتطابق بلي
         map.on('load', () => {
-            try {
-                // تعديل لون المباني
-                map.setPaintProperty('building', 'fill-color', '#F1EEE9');
-                // تعديل لون الماء (إذا اكو قريب عليك)
-                map.setPaintProperty('water', 'fill-color', '#D8EAFB');
-            } catch (error) {
-                console.log("بعض الطبقات غير موجودة بهذا الاسم، بس الخريطة راح تشتغل عادي.");
-            }
+            const layers = map.getStyle().layers;
+            
+            layers.forEach(layer => {
+                try {
+                    // 1. تلوين الخلفية (لون رمادي فاتح جداً مريح للعين)
+                    if (layer.id.includes('background')) {
+                        map.setPaintProperty(layer.id, 'background-color', '#F4F5F6');
+                    }
+                    
+                    // 2. تلوين المباني (لون رصاصي أنيق حتى تبرز عن الخلفية)
+                    else if (layer.id.includes('building')) {
+                        map.setPaintProperty(layer.id, 'fill-color', '#EAEAEA');
+                    }
+                    
+                    // 3. تلوين كل الشوارع (نلغي الأصفر ونخليها بيضاء نظيفة)
+                    else if (layer.id.includes('road') || layer.id.includes('highway') || layer.id.includes('bridge') || layer.id.includes('tunnel')) {
+                        if (layer.type === 'line') {
+                            // إذا كانت الطبقة تمثل حدود الشارع
+                            if (layer.id.includes('case') || layer.id.includes('outline')) {
+                                map.setPaintProperty(layer.id, 'line-color', '#E0E0E0'); // حدود رصاصية فاتحة
+                            } else {
+                                // الشارع نفسه من الداخل
+                                map.setPaintProperty(layer.id, 'line-color', '#FFFFFF'); // أبيض ناصع
+                            }
+                        }
+                    }
+
+                    // 4. إخفاء أيقونات المتاجر (POI) المزعجة لترتيب الخريطة (نفس بلي)
+                    else if (layer.id.includes('poi')) {
+                        map.setLayoutProperty(layer.id, 'visibility', 'none');
+                    }
+
+                } catch (error) {
+                    // نتجاهل الطبقات اللي ما تقبل التعديل
+                }
+            });
         });
 
     </script>
