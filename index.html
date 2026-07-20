@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ألك - تباين الشوارع</title>
+    <title>تطبيق ألك - ستايل بلي الاحترافي</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -55,37 +55,55 @@
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
-        // التعديل: فصل الشوارع الرئيسية عن الفرعية
+        // التعديل: تظليل الخلفية وتحديد الشوارع الرئيسية فقط
         map.on('load', () => {
             const layers = map.getStyle().layers;
             
             layers.forEach(layer => {
                 try {
-                    // استهداف طبقات الشوارع 
-                    if (layer.type === 'line' && (layer.id.includes('highway') || layer.id.includes('road'))) {
-                        
-                        // نتجاوز حدود الشارع (casing) حتى تبقى واضحة
-                        if (!layer.id.includes('case') && !layer.id.includes('outline')) {
-                            
-                            // نتحقق إذا كان اسم الطبقة يدل على شارع فرعي أو زقاق أو سكني
-                            const isMinorRoad = layer.id.includes('minor') || 
-                                                layer.id.includes('residential') || 
-                                                layer.id.includes('service') || 
-                                                layer.id.includes('unclassified') || 
-                                                layer.id.includes('path') || 
-                                                layer.id.includes('pedestrian');
+                    // 1. جعل لون الخريطة (الخلفية والمباني) أغمق أكثر
+                    if (layer.id.includes('background')) {
+                        map.setPaintProperty(layer.id, 'background-color', '#E2E5E9');
+                    } 
+                    else if (layer.id.includes('building')) {
+                        map.setPaintProperty(layer.id, 'fill-color', '#DDE1E5');
+                    }
 
-                            if (isMinorRoad) {
-                                // شوارع فرعية: أفتح مائل للبياض
-                                map.setPaintProperty(layer.id, 'line-color', '#F7F9FA'); 
+                    // 2. إدارة الشوارع (التحديد والألوان)
+                    else if (layer.type === 'line' && (layer.id.includes('highway') || layer.id.includes('road') || layer.id.includes('bridge'))) {
+                        
+                        // تصنيف الشارع
+                        const isMinorRoad = layer.id.includes('minor') || 
+                                            layer.id.includes('residential') || 
+                                            layer.id.includes('service') || 
+                                            layer.id.includes('unclassified') || 
+                                            layer.id.includes('path') || 
+                                            layer.id.includes('pedestrian');
+
+                        const isCasing = layer.id.includes('case') || layer.id.includes('outline');
+
+                        if (isMinorRoad) {
+                            // الشوارع الفرعية
+                            if (isCasing) {
+                                // دمج حدود الشوارع الفرعية مع الخلفية حتى تختفي وتكون نظيفة
+                                map.setPaintProperty(layer.id, 'line-color', '#E2E5E9'); 
                             } else {
-                                // شوارع رئيسية: رصاصي فاتح مزرق
+                                // قلب الشارع الفرعي يصير أبيض ناصع حتى يبرز
+                                map.setPaintProperty(layer.id, 'line-color', '#FDFDFD'); 
+                            }
+                        } else {
+                            // الشوارع الرئيسية
+                            if (isCasing) {
+                                // تحديد الشوارع الرئيسية بلون داكن فاتح
+                                map.setPaintProperty(layer.id, 'line-color', '#A5B1C2'); 
+                            } else {
+                                // قلب الشارع الرئيسي (رصاصي فاتح مزرق مثل ما طلبت سابقاً)
                                 map.setPaintProperty(layer.id, 'line-color', '#D0D9E0'); 
                             }
                         }
                     }
                 } catch (error) {
-                    // تجاهل الطبقات اللي ما تقبل التعديل
+                    // تجاهل الطبقات اللي ما تقبل التعديل للحفاظ على ثبات الخريطة
                 }
             });
         });
