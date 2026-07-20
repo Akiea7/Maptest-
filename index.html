@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تجارب خريطة ألك - حركة السيارات</title>
+    <title>ألك - OpenFreeMap + Custom Style</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -12,32 +12,20 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; background-color: #FAFAFA; }
+        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; background-color: #FAFAFA;}
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
         
         .bounce-marker {
             transform: translate(-50%, -80%) scale(1.05) !important;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-
-        .alak-poi {
-            transition: opacity 0.3s ease;
-            opacity: 0; 
-            pointer-events: none;
-        }
-        .alak-poi.visible { opacity: 1; pointer-events: auto; }
-
-        /* دوران السيارة يكون ناعم جداً */
-        #car-rotator {
-            transition: transform 0.5s linear;
-        }
     </style>
 </head>
-<body>
+<body class="relative h-screen w-full">
 
     <div id="map"></div>
 
-    <!-- دبوس منصة "ألك" -->
+    <!-- دبوس المنتصف -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         <div class="w-[34px] h-[34px] bg-[#FF6B00] rounded-full border-[3px] border-white shadow-sm flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
@@ -47,18 +35,86 @@
     </div>
 
     <script>
-        const MAPTILER_KEY = 'OGSDPhMzvxvYdBNPD9NE'; 
-
         maplibregl.setRTLTextPlugin(
             'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js',
             null,
             true 
         );
 
+        // ==========================================
+        // الستايل الخاص بـ "ألك" (ALK Light)
+        // الألوان بالضبط مثل ما طلب صديقك
+        // ==========================================
+        const alakStyle = {
+            "version": 8,
+            "name": "ALK Light",
+            // مصادر البيانات المجانية من OpenFreeMap
+            "sources": {
+                "openfreemap": {
+                    "type": "vector",
+                    "url": "https://tiles.openfreemap.org/planet" // مجاني 100% بدون مفتاح!
+                }
+            },
+            // طبقات الألوان (هنا سحرك وتعديلاتك)
+            "layers": [
+                {
+                    "id": "background",
+                    "type": "background",
+                    "paint": { "background-color": "#FAFAFA" } // لون الخلفية
+                },
+                {
+                    "id": "water",
+                    "type": "fill",
+                    "source": "openfreemap",
+                    "source-layer": "water",
+                    "paint": { "fill-color": "#D8EAFB" } // لون الماء أزرق فاتح
+                },
+                {
+                    "id": "parks",
+                    "type": "fill",
+                    "source": "openfreemap",
+                    "source-layer": "landcover",
+                    "filter": ["==", "class", "park"],
+                    "paint": { "fill-color": "#DCEFD7" } // لون الحدائق أخضر فاتح
+                },
+                {
+                    "id": "buildings",
+                    "type": "fill",
+                    "source": "openfreemap",
+                    "source-layer": "building",
+                    "paint": { 
+                        "fill-color": "#F1EEE9", // لون المباني بيج فاتح
+                        "fill-outline-color": "#E8E5E0"
+                    }
+                },
+                {
+                    "id": "roads-casing",
+                    "type": "line",
+                    "source": "openfreemap",
+                    "source-layer": "transportation",
+                    "paint": {
+                        "line-color": "#E5E5E5", // لون حدود الشارع
+                        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 18, 16]
+                    }
+                },
+                {
+                    "id": "roads",
+                    "type": "line",
+                    "source": "openfreemap",
+                    "source-layer": "transportation",
+                    "paint": {
+                        "line-color": "#FFFFFF", // لون الشوارع بيضاء
+                        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 1.5, 18, 14]
+                    }
+                }
+                // (ملاحظة: هذا هيكل مبسط للستايل يعطيك ألوان بلي الأساسية، وتقدر تضيف إظهار أسماء الشوارع لاحقاً)
+            ]
+        };
+
         const map = new maplibregl.Map({
             container: 'map',
-            style: `https://api.maptiler.com/maps/backdrop/style.json?key=${MAPTILER_KEY}`,
-            center: [44.3783246, 33.6668412], // الطارمية
+            style: alakStyle, // استخدمنا الستايل الخاص بيك مباشرة!
+            center: [44.3783246, 33.6668412],
             zoom: 17.6,
             bearing: 18,
             pitch: 0,
@@ -66,140 +122,10 @@
             attributionControl: false
         });
 
-        // حركة الدبوس المركزية
+        // حركة الدبوس
         const centerMarker = document.getElementById('center-marker');
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
-
-        // زرع الأماكن (POIs)
-        const ALAK_DB = [
-            { id: 1, type: 'restaurant', name: 'مطعم الضيافة', lat: 33.6670, lng: 44.3790, icon: 'utensils', color: '#EF4444' },
-            { id: 2, type: 'pharmacy', name: 'صيدلية الشفاء', lat: 33.6662, lng: 44.3775, icon: 'pill', color: '#10B981' }
-        ];
-
-        const markersObjects = [];
-        ALAK_DB.forEach(place => {
-            const el = document.createElement('div');
-            el.className = 'alak-poi cursor-pointer hover:scale-110';
-            el.innerHTML = `
-                <div class="w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center relative">
-                    <i data-lucide="${place.icon}" class="w-4 h-4" style="color: ${place.color}"></i>
-                </div>
-            `;
-            const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-                .setLngLat([place.lng, place.lat])
-                .addTo(map);
-            markersObjects.push({ element: el, data: place });
-        });
-        lucide.createIcons();
-        map.on('zoom', () => {
-            const currentZoom = map.getZoom();
-            markersObjects.forEach(marker => {
-                if (currentZoom >= 16) marker.element.classList.add('visible');
-                else marker.element.classList.remove('visible');
-            });
-        });
-        map.on('load', () => map.fire('zoom'));
-
-        // ==========================================
-        // المرحلة 5: نظام حركة السيارات الاحترافي
-        // ==========================================
-        
-        // 1. تصميم سيارة ألك (بدون الحاجة لصور خارجية)
-        const carElement = document.createElement('div');
-        carElement.innerHTML = `
-            <div id="car-rotator" class="relative w-[18px] h-[36px] bg-[#1C1C1E] rounded-md shadow-lg border border-gray-700 flex justify-center">
-                <!-- الجامة الأمامية (الزجاج) لتمييز اتجاه السيارة -->
-                <div class="w-[12px] h-[6px] bg-[#8EB1C7] rounded-sm mt-1 opacity-80"></div>
-                <!-- أضواء خلفية حمراء -->
-                <div class="absolute bottom-0 left-1 w-1 h-1 bg-red-500 rounded-full shadow-[0_0_2px_red]"></div>
-                <div class="absolute bottom-0 right-1 w-1 h-1 bg-red-500 rounded-full shadow-[0_0_2px_red]"></div>
-            </div>
-        `;
-
-        const carMarker = new maplibregl.Marker({ element: carElement, anchor: 'center' })
-            .setLngLat([44.3763246, 33.6668412]) // نقطة البداية
-            .addTo(map);
-
-        // مسار افتراضي في شوارع الطارمية (مجموعة نقاط [خط الطول, دائرة العرض])
-        const route = [
-            [44.3763246, 33.6668412],
-            [44.3783246, 33.6668412], // تمشي بخط مستقيم
-            [44.3783246, 33.6648412], // تلوف لليمين (تنزل جوه)
-            [44.3763246, 33.6648412], // تلوف مرة ثانية
-            [44.3763246, 33.6668412]  // ترجع لنقطة البداية (وتنعاد الدورة)
-        ];
-
-        // معادلة حساب زاوية دوران السيارة (Bearing)
-        function getBearing(startLoc, endLoc) {
-            const PI = Math.PI;
-            const lat1 = startLoc[1] * PI / 180;
-            const lon1 = startLoc[0] * PI / 180;
-            const lat2 = endLoc[1] * PI / 180;
-            const lon2 = endLoc[0] * PI / 180;
-            const dLon = lon2 - lon1;
-            const y = Math.sin(dLon) * Math.cos(lat2);
-            const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-            let brng = Math.atan2(y, x);
-            brng = brng * 180 / PI;
-            return (brng + 360) % 360;
-        }
-
-        // دالة التحريك الناعم (Interpolation)
-        function animateCar(marker, path) {
-            let i = 0;
-            let start = path[0];
-            let end = path[1];
-            let duration = 4000; // سرعة السيارة (4 ثواني لكل مقطع)
-            let startTime = null;
-            const rotator = document.getElementById('car-rotator');
-
-            function updateRotation(p1, p2) {
-                const angle = getBearing(p1, p2);
-                rotator.style.transform = `rotate(${angle}deg)`;
-            }
-
-            function step(timestamp) {
-                if (!startTime) startTime = timestamp;
-                let progress = (timestamp - startTime) / duration;
-                if (progress > 1) progress = 1;
-
-                // تحريك السيارة تدريجياً (الزحف الناعم)
-                let lng = start[0] + (end[0] - start[0]) * progress;
-                let lat = start[1] + (end[1] - start[1]) * progress;
-                marker.setLngLat([lng, lat]);
-
-                if (progress === 1) {
-                    i++;
-                    if (i < path.length - 1) {
-                        start = path[i];
-                        end = path[i+1];
-                        startTime = timestamp;
-                        updateRotation(start, end);
-                        requestAnimationFrame(step);
-                    } else {
-                        // إعادة المسار من جديد (Loop) للتجربة
-                        i = 0;
-                        start = path[0];
-                        end = path[1];
-                        startTime = timestamp;
-                        updateRotation(start, end);
-                        requestAnimationFrame(step);
-                    }
-                } else {
-                    requestAnimationFrame(step);
-                }
-            }
-
-            // أول لوفة للسيارة عند التشغيل
-            updateRotation(start, end);
-            requestAnimationFrame(step);
-        }
-
-        // تشغيل محرك السيارة!
-        map.on('load', () => {
-            animateCar(carMarker, route);
-        });
 
     </script>
 </body>
