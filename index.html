@@ -1,53 +1,90 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doctor Faustus | Cinematic</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <title>تجارب خريطة ألك - MapTiler</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MapLibre -->
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+    <!-- خط Noto Sans Arabic -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        
+        /* حركة الدبوس الناعمة (Bounce) عند السحب */
+        .bounce-marker {
+            transform: translate(-50%, -65%) scale(1.05) !important;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+    </style>
 </head>
 <body>
 
-    <div class="fixed-background">
-        <div class="glow"></div>
+    <!-- حاوية الخريطة -->
+    <div id="map"></div>
+
+    <!-- دبوس المنتصف المخصص (ستايل بلي) -->
+    <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none transition-transform duration-300">
+        <!-- الظل -->
+        <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-5 h-2.5 bg-black/20 rounded-[100%] blur-[2px]"></div>
+        <!-- الدائرة -->
+        <div class="w-[28px] h-[28px] bg-[#1a1a1a] rounded-full border-[3px] border-white shadow-lg flex items-center justify-center relative z-10">
+            <div class="w-2.5 h-2.5 bg-yellow-400 rounded-full"></div>
+        </div>
+        <!-- العصا -->
+        <div class="w-[3px] h-[16px] bg-[#1a1a1a] mx-auto -mt-1 rounded-b-sm"></div>
     </div>
 
-    <section class="panel hero">
-        <div class="content">
-            <p class="subtitle">A Masterpiece by Christopher Marlowe</p>
-            <h1 class="main-title">Doctor Faustus</h1>
-            <p class="tagline">Scroll slowly to descend into darkness...</p>
-        </div>
-    </section>
+    <script>
+        // مفتاح MapTiler الخاص بيك
+        const MAPTILER_KEY = 'OGSDPhMzvxvYdBNPD9NE'; 
 
-    <section class="panel pact">
-        <div class="content">
-            <h2 class="section-title">The Blood Pact</h2>
-            <div class="parchment">
-                <p class="pact-text">"I, John Faustus of Wittenberg..."</p>
-                <p class="pact-text">...do give both body and soul to Lucifer.</p>
-                <p class="pact-text highlight-blood">The price of infinite knowledge.</p>
-            </div>
-        </div>
-    </section>
+        // تفعيل دعم العربي
+        maplibregl.setRTLTextPlugin(
+            'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js',
+            null,
+            true 
+        );
 
-    <script src="script.js"></script>
-      <section class="panel demon">
-        <div class="content">
-            <p class="demon-whisper">The Summoning</p>
-            <h2 class="demon-title">Enter Mephistopheles</h2>
-            <div class="quote-box">
-                <p class="quote">"Why this is hell, nor am I out of it."</p>
-                <p class="quote-author">- Mephistopheles</p>
-            </div>
-        </div>
-    </section>
-  
+        // تهيئة الخريطة باستخدام ستايل Streets Light النظيف
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${MAPTILER_KEY}`,
+            center: [44.3783246, 33.6668412], // مركز الطارمية
+            zoom: 17, // زووم قريب
+            attributionControl: false // إخفاء الحقوق
+        });
+
+        const centerMarker = document.getElementById('center-marker');
+
+        // إضافة حركة الدبوس عند سحب الخريطة
+        map.on('movestart', () => {
+            centerMarker.classList.add('bounce-marker');
+        });
+
+        map.on('moveend', () => {
+            centerMarker.classList.remove('bounce-marker');
+            
+            // إضافة نعومة (easeTo) بعد ما يوقف المستخدم من السحب
+            const center = map.getCenter();
+            map.easeTo({ center: center, duration: 500 });
+            
+            console.log("الموقع الحالي:", center);
+        });
+
+        // تفعيل الأيقونات
+        lucide.createIcons();
+    </script>
 </body>
 </html>
