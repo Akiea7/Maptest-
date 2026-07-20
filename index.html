@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ألك - ألوان بلي الأصلية</title>
+    <title>تطبيق ألك - تعديل الشوارع فقط</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; background-color: #F0F2F5;}
+        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
         
         .bounce-marker {
@@ -24,7 +24,7 @@
 
     <div id="map"></div>
 
-    <!-- دبوس ألك -->
+    <!-- دبوس ألك الاحترافي -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         <div class="w-[34px] h-[34px] bg-[#FF6B00] rounded-full border-[3px] border-white shadow-sm flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
@@ -43,7 +43,7 @@
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://tiles.openfreemap.org/styles/liberty', 
-            center: [44.3783246, 33.6668412], 
+            center: [44.3783246, 33.6668412], // الطارمية
             zoom: 17.6,
             bearing: 18,
             pitch: 0,
@@ -51,65 +51,28 @@
             attributionControl: false
         });
 
+        // حركة الدبوس
         const centerMarker = document.getElementById('center-marker');
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
-        // التلوين الدقيق (نسخة بلي)
+        // التعديل: تغيير لون الشوارع فقط وترك باقي الخريطة كما هي
         map.on('load', () => {
             const layers = map.getStyle().layers;
             
             layers.forEach(layer => {
                 try {
-                    // 1. الخلفية (رمادي فاتح جداً)
-                    if (layer.id.includes('background') || layer.id.includes('landcover')) {
-                        if (map.getPaintProperty(layer.id, 'background-color')) {
-                            map.setPaintProperty(layer.id, 'background-color', '#F0F2F5');
-                        }
-                        if (map.getPaintProperty(layer.id, 'fill-color')) {
-                            map.setPaintProperty(layer.id, 'fill-color', '#F0F2F5');
-                        }
-                    }
-                    
-                    // 2. المباني (أبيض ناصع حتى تبرز فوق الخلفية الرمادية)
-                    else if (layer.id.includes('building')) {
-                        map.setPaintProperty(layer.id, 'fill-color', '#FFFFFF');
-                        // حدود خفيفة جداً للمباني
-                        if (layer.paint && layer.paint['fill-outline-color']) {
-                           map.setPaintProperty(layer.id, 'fill-outline-color', '#E8EAEF');
+                    // استهداف طبقات الشوارع (الطرق الرئيسية والفرعية)
+                    if (layer.type === 'line' && (layer.id.includes('highway') || layer.id.includes('road'))) {
+                        
+                        // نتجاوز حدود الشارع (casing) حتى تبقى واضحة، ونلون قلب الشارع فقط
+                        if (!layer.id.includes('case') && !layer.id.includes('outline')) {
+                            // لون رصاصي فاتح مزرق
+                            map.setPaintProperty(layer.id, 'line-color', '#D0D9E0'); 
                         }
                     }
-                    
-                    // 3. الشوارع (نفصل بين الرئيسي والفرعي)
-                    else if (layer.id.includes('highway') || layer.id.includes('road')) {
-                        if (layer.type === 'line') {
-                            
-                            // الشوارع الرئيسية (مثل شارع مشروع زيدان - رصاصي)
-                            if (layer.id.includes('primary') || layer.id.includes('secondary') || layer.id.includes('motorway') || layer.id.includes('trunk')) {
-                                if (layer.id.includes('case') || layer.id.includes('outline')) {
-                                    map.setPaintProperty(layer.id, 'line-color', '#C8CDD4'); // حدود الشارع
-                                } else {
-                                    map.setPaintProperty(layer.id, 'line-color', '#DDE1E6'); // بطن الشارع
-                                }
-                            } 
-                            // الشوارع الفرعية والأزقة (مثل باقي الشوارع بالصورة - بيضاء)
-                            else {
-                                if (layer.id.includes('case') || layer.id.includes('outline')) {
-                                    map.setPaintProperty(layer.id, 'line-color', '#EAECEF'); // حدود خفيفة للزقاق
-                                } else {
-                                    map.setPaintProperty(layer.id, 'line-color', '#FFFFFF'); // زقاق أبيض ناصع
-                                }
-                            }
-                        }
-                    }
-
-                    // 4. إخفاء أيقونات المتاجر والأشجار لتنظيف الخريطة
-                    if (layer.id.includes('poi') || (layer.id.includes('park') && layer.type === 'symbol')) {
-                        map.setLayoutProperty(layer.id, 'visibility', 'none');
-                    }
-
                 } catch (error) {
-                    // نتجاهل الطبقات اللي ما تقبل التعديل
+                    // تجاهل أي طبقة لا تقبل التعديل
                 }
             });
         });
