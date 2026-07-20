@@ -3,21 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ألك - نسخة بلي المطابقة</title>
+    <title>ألك - النسخة الاحترافية</title>
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MapLibre -->
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- خط Noto Sans Arabic -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; background-color: #F8F8F8; }
         
-        /* حركة الدبوس الناعمة (Bounce) عند السحب - نسخة بلي */
+        /* (النقطة 5) لون الخلفية البديل إذا تأخر تحميل الخريطة */
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; background-color: #F4F5F7; }
+        
+        /* حركة الدبوس الناعمة */
         .bounce-marker {
-            transform: translate(-50%, -75%) scale(1.08) !important;
+            transform: translate(-50%, -75%) scale(1.05) !important;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
     </style>
@@ -26,22 +32,22 @@
 
     <div id="map"></div>
 
-    <!-- دبوس بلي البرتقالي المطابق للصورة -->
-    <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300">
-        <div class="relative flex flex-col items-center">
-            <!-- الدائرة البرتقالية مع الإطار الأبيض -->
-            <div class="w-[28px] h-[28px] bg-[#FF6B00] rounded-full border-[2.5px] border-white shadow-sm flex items-center justify-center z-10">
-                <div class="w-2.5 h-2.5 bg-white rounded-full"></div>
-            </div>
-            <!-- العصا السفلية -->
-            <div class="w-[1.5px] h-[16px] bg-gray-500 -mt-0.5 z-0"></div>
-            <!-- النقطة الرمادية على الأرض (الظل) -->
-            <div class="w-[7px] h-[7px] bg-gray-400 rounded-full opacity-60 -mt-1 shadow-sm"></div>
+    <!-- (النقطة 6 و 7) الدبوس المحدث: 34px، عصا أطول، وظل 14px مع بلور -->
+    <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[60%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
+        
+        <!-- الدائرة البرتقالية (كبرناها لـ 34px) -->
+        <div class="w-[34px] h-[34px] bg-[#FF6B00] rounded-full border-[3px] border-white shadow-sm flex items-center justify-center z-10 relative">
+            <div class="w-3 h-3 bg-white rounded-full"></div>
         </div>
+        
+        <!-- العصا الطويلة -->
+        <div class="w-[2px] h-[22px] bg-[#4a4a4a] -mt-1 z-0 relative"></div>
+        
+        <!-- الظل الدقيق حسب طلب صديقك -->
+        <div class="w-[14px] h-[6px] bg-black rounded-[50%] -mt-1 z-0" style="opacity: 0.18; filter: blur(3px);"></div>
     </div>
 
     <script>
-        // مفتاحك اللي دزيته
         const MAPTILER_KEY = 'OGSDPhMzvxvYdBNPD9NE'; 
 
         maplibregl.setRTLTextPlugin(
@@ -50,118 +56,31 @@
             true 
         );
 
-        // الخريطة الأساسية
+        // الخريطة الاحترافية (بدون أي دوال ترقيع الألوان!)
         const map = new maplibregl.Map({
             container: 'map',
-            style: `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`,
-            center: [44.3783246, 33.6668412], // الطارمية
-            zoom: 17, // زووم بلي الافتراضي
+            // (النقطة 1) استخدام ستايل Backdrop كبداية هادئة
+            // ملاحظة: لاحقاً من تسوي ستايلك الخاص بـ MapTiler Cloud، بس جيب الرابط مالته وخليه هنا!
+            style: `https://api.maptiler.com/maps/backdrop/style.json?key=${MAPTILER_KEY}`,
+            center: [44.3783246, 33.6668412], // إحداثيات الطارمية
+            zoom: 17.6, // (النقطة 10) الزووم الدقيق
+            bearing: 18, // (النقطة 11) إعطاء انحراف بسيط للخريطة
             pitch: 0,
+            antialias: true, // (النقطة 12) حواف الشوارع الناعمة
             attributionControl: false
         });
 
-        // سحر تغيير الألوان وتطابقها مع بلي
-        map.on('load', () => {
-            const layers = map.getStyle().layers;
-
-            layers.forEach(layer => {
-                const id = layer.id;
-
-                // 1. إخفاء كل المعالم المزعجة والأسماء الإنجليزية
-                if (id.includes('poi') || id.includes('housenumber') || id.includes('transit') || id.includes('place_suburb')) {
-                    map.setLayoutProperty(id, 'visibility', 'none');
-                }
-
-                // 2. تلوين الحدائق نفس أخضر بلي الفاتح
-                if (layer.type === 'fill' && (id.includes('park') || id.includes('green') || id.includes('landcover'))) {
-                    map.setPaintProperty(id, 'fill-color', '#CDEED3');
-                }
-
-                // 3. تلوين المباني بيجي فاتح جداً
-                if (id.includes('building')) {
-                    map.setPaintProperty(id, 'fill-color', '#F5F3EF');
-                }
-
-                // 4. تلوين الشوارع بدقة حسب نصائح صديقك
-                if (id.includes('road') && layer.type === 'line') {
-                    if (id.includes('minor') || id.includes('service') || id.includes('path')) {
-                        map.setPaintProperty(id, 'line-color', '#E8E8E8'); // أزقة رمادية فاتحة
-                    } else if (id.includes('primary') || id.includes('secondary') || id.includes('tertiary')) {
-                        map.setPaintProperty(id, 'line-color', '#C8D2DC'); // شوارع رئيسية أغمق بشوية
-                    } else if (id.includes('motorway') || id.includes('trunk')) {
-                        map.setPaintProperty(id, 'line-color', '#BAC8D6'); // الخط السريع
-                    }
-                }
-                
-                // 5. تصغير الخطوط وتعديلها للعربي
-                if (layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
-                    map.setLayoutProperty(id, 'text-size', 12);
-                    if (layer.paint && layer.paint['text-color']) {
-                        map.setPaintProperty(id, 'text-color', '#6b7280'); // لون الخط رمادي هادئ
-                    }
-                }
-            });
-
-            // إضافة دبابيس الأماكن الوهمية للتجربة (نفس دبابيس بلي الرمادية الدائرية)
-            renderTestPOIs();
-        });
-
-        // حركة الدبوس عند السحب (التبعيد والتقريب السلس)
         const centerMarker = document.getElementById('center-marker');
         
         map.on('movestart', () => {
             centerMarker.classList.add('bounce-marker');
         });
 
-                map.on('moveend', () => {
+        map.on('moveend', () => {
             centerMarker.classList.remove('bounce-marker');
         });
 
-        // دالة رسم الأماكن المخصصة (POIs) بشكل يطابق بلي
-        function renderTestPOIs() {
-            // نماذج أماكن قريبة للتجربة
-            const testLocations = [
-                { lat: 33.6663976, lng: 44.3808023, icon: 'utensils' }, // مطعم
-                { lat: 33.6654501, lng: 44.3886696, icon: 'plus' }, // صيدلية
-                { lat: 33.6672416, lng: 44.3756687, icon: 'shopping-bag' } // أسواق
-            ];
-
-            const allPois = [];
-
-            testLocations.forEach(loc => {
-                const el = document.createElement('div');
-                el.className = 'cursor-pointer transition-opacity duration-500 opacity-0 pointer-events-none'; 
-                
-                // الدبوس الرمادي الدائري (نفس بلي)
-                el.innerHTML = `
-                    <div class="w-[22px] h-[22px] bg-[#70757D] rounded-full flex items-center justify-center border border-white shadow-sm hover:scale-110 transition-transform">
-                        <i data-lucide="${loc.icon}" class="w-3 h-3 text-white"></i>
-                    </div>
-                `;
-
-                new maplibregl.Marker({ element: el, anchor: 'center' })
-                    .setLngLat([loc.lng, loc.lat])
-                    .addTo(map);
-
-                allPois.push(el);
-            });
-
-            // سر التبعيد والتقريب: الأماكن تظهر فقط إذا الزووم أكثر من 16
-            map.on('zoom', () => {
-                const currentZoom = map.getZoom();
-                allPois.forEach(el => {
-                    if (currentZoom < 16) {
-                        el.style.opacity = '0';
-                        el.style.pointerEvents = 'none';
-                    } else {
-                        el.style.opacity = '1';
-                        el.style.pointerEvents = 'auto';
-                    }
-                });
-            });
-            map.fire('zoom'); // تفعيلها فوراً
-            lucide.createIcons();
-        }
+        // (النقطة 9) تم حذف دالة renderTestPOIs بالكامل.
     </script>
 </body>
 </html>
