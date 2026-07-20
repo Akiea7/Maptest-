@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ألك - OpenFreeMap + Custom Style</title>
+    <title>ألك - OpenFreeMap (Positron)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; background-color: #FAFAFA;}
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
         
         .bounce-marker {
-            transform: translate(-50%, -80%) scale(1.05) !important;
+            transform: translate(-50%, -75%) scale(1.05) !important;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
     </style>
@@ -25,7 +24,7 @@
 
     <div id="map"></div>
 
-    <!-- دبوس المنتصف -->
+    <!-- دبوس ألك الاحترافي -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         <div class="w-[34px] h-[34px] bg-[#FF6B00] rounded-full border-[3px] border-white shadow-sm flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
@@ -41,80 +40,12 @@
             true 
         );
 
-        // ==========================================
-        // الستايل الخاص بـ "ألك" (ALK Light)
-        // الألوان بالضبط مثل ما طلب صديقك
-        // ==========================================
-        const alakStyle = {
-            "version": 8,
-            "name": "ALK Light",
-            // مصادر البيانات المجانية من OpenFreeMap
-            "sources": {
-                "openfreemap": {
-                    "type": "vector",
-                    "url": "https://tiles.openfreemap.org/planet" // مجاني 100% بدون مفتاح!
-                }
-            },
-            // طبقات الألوان (هنا سحرك وتعديلاتك)
-            "layers": [
-                {
-                    "id": "background",
-                    "type": "background",
-                    "paint": { "background-color": "#FAFAFA" } // لون الخلفية
-                },
-                {
-                    "id": "water",
-                    "type": "fill",
-                    "source": "openfreemap",
-                    "source-layer": "water",
-                    "paint": { "fill-color": "#D8EAFB" } // لون الماء أزرق فاتح
-                },
-                {
-                    "id": "parks",
-                    "type": "fill",
-                    "source": "openfreemap",
-                    "source-layer": "landcover",
-                    "filter": ["==", "class", "park"],
-                    "paint": { "fill-color": "#DCEFD7" } // لون الحدائق أخضر فاتح
-                },
-                {
-                    "id": "buildings",
-                    "type": "fill",
-                    "source": "openfreemap",
-                    "source-layer": "building",
-                    "paint": { 
-                        "fill-color": "#F1EEE9", // لون المباني بيج فاتح
-                        "fill-outline-color": "#E8E5E0"
-                    }
-                },
-                {
-                    "id": "roads-casing",
-                    "type": "line",
-                    "source": "openfreemap",
-                    "source-layer": "transportation",
-                    "paint": {
-                        "line-color": "#E5E5E5", // لون حدود الشارع
-                        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 18, 16]
-                    }
-                },
-                {
-                    "id": "roads",
-                    "type": "line",
-                    "source": "openfreemap",
-                    "source-layer": "transportation",
-                    "paint": {
-                        "line-color": "#FFFFFF", // لون الشوارع بيضاء
-                        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 1.5, 18, 14]
-                    }
-                }
-                // (ملاحظة: هذا هيكل مبسط للستايل يعطيك ألوان بلي الأساسية، وتقدر تضيف إظهار أسماء الشوارع لاحقاً)
-            ]
-        };
-
+        // المحرك: MapLibre
         const map = new maplibregl.Map({
             container: 'map',
-            style: alakStyle, // استخدمنا الستايل الخاص بيك مباشرة!
-            center: [44.3783246, 33.6668412],
+            // البيانات والستايل: ستايل Positron الفاتح والمجاني من OpenFreeMap
+            style: 'https://tiles.openfreemap.org/styles/positron', 
+            center: [44.3783246, 33.6668412], // الطارمية
             zoom: 17.6,
             bearing: 18,
             pitch: 0,
@@ -122,7 +53,7 @@
             attributionControl: false
         });
 
-        // حركة الدبوس
+        // حركة الدبوس الناعمة
         const centerMarker = document.getElementById('center-marker');
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
