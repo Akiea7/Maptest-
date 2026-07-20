@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ألك - تعديل الشوارع فقط</title>
+    <title>تطبيق ألك - تباين الشوارع</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -51,28 +51,41 @@
             attributionControl: false
         });
 
-        // حركة الدبوس
         const centerMarker = document.getElementById('center-marker');
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
-        // التعديل: تغيير لون الشوارع فقط وترك باقي الخريطة كما هي
+        // التعديل: فصل الشوارع الرئيسية عن الفرعية
         map.on('load', () => {
             const layers = map.getStyle().layers;
             
             layers.forEach(layer => {
                 try {
-                    // استهداف طبقات الشوارع (الطرق الرئيسية والفرعية)
+                    // استهداف طبقات الشوارع 
                     if (layer.type === 'line' && (layer.id.includes('highway') || layer.id.includes('road'))) {
                         
-                        // نتجاوز حدود الشارع (casing) حتى تبقى واضحة، ونلون قلب الشارع فقط
+                        // نتجاوز حدود الشارع (casing) حتى تبقى واضحة
                         if (!layer.id.includes('case') && !layer.id.includes('outline')) {
-                            // لون رصاصي فاتح مزرق
-                            map.setPaintProperty(layer.id, 'line-color', '#D0D9E0'); 
+                            
+                            // نتحقق إذا كان اسم الطبقة يدل على شارع فرعي أو زقاق أو سكني
+                            const isMinorRoad = layer.id.includes('minor') || 
+                                                layer.id.includes('residential') || 
+                                                layer.id.includes('service') || 
+                                                layer.id.includes('unclassified') || 
+                                                layer.id.includes('path') || 
+                                                layer.id.includes('pedestrian');
+
+                            if (isMinorRoad) {
+                                // شوارع فرعية: أفتح مائل للبياض
+                                map.setPaintProperty(layer.id, 'line-color', '#F7F9FA'); 
+                            } else {
+                                // شوارع رئيسية: رصاصي فاتح مزرق
+                                map.setPaintProperty(layer.id, 'line-color', '#D0D9E0'); 
+                            }
                         }
                     }
                 } catch (error) {
-                    // تجاهل أي طبقة لا تقبل التعديل
+                    // تجاهل الطبقات اللي ما تقبل التعديل
                 }
             });
         });
