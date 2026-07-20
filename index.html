@@ -113,9 +113,8 @@
             centerMarker.classList.add('bounce-marker');
         });
 
-        map.on('moveend', () => {
+                map.on('moveend', () => {
             centerMarker.classList.remove('bounce-marker');
-            map.easeTo({ center: map.getCenter(), duration: 600 }); // حركة ناعمة
         });
 
         // دالة رسم الأماكن المخصصة (POIs) بشكل يطابق بلي
