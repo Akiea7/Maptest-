@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ألك - ستايل بلي (تعديل نهائي)</title>
+    <title>تطبيق ألك - ستايل بلي (مع التحديد)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -60,7 +60,7 @@
             
             layers.forEach(layer => {
                 try {
-                    // 1. جعل لون الخريطة أفتح ومريح للعين
+                    // 1. ألوان الخلفية والمباني (رصاصي هادئ جداً)
                     if (layer.id.includes('background')) {
                         map.setPaintProperty(layer.id, 'background-color', '#EBEBEB');
                     } 
@@ -71,7 +71,6 @@
                     // 2. إدارة الشوارع (التحديد والألوان)
                     else if (layer.type === 'line' && (layer.id.includes('highway') || layer.id.includes('road') || layer.id.includes('bridge') || layer.id.includes('tunnel'))) {
                         
-                        // تصنيف الشارع
                         const isMinorRoad = layer.id.includes('minor') || 
                                             layer.id.includes('residential') || 
                                             layer.id.includes('service') || 
@@ -79,31 +78,34 @@
                                             layer.id.includes('path') || 
                                             layer.id.includes('pedestrian');
 
-                        // لزمنا كل أنواع أسماء التحديد (Casing & Outline)
-                        const isCasing = layer.id.includes('case') || layer.id.includes('casing') || layer.id.includes('outline');
+                        // هنا وسعنا شبكة البحث عن طبقة "التحديد" حتى ما تفلت أي وحدة
+                        const isCasing = layer.id.includes('case') || 
+                                         layer.id.includes('casing') || 
+                                         layer.id.includes('outline') || 
+                                         layer.id.includes('bg') || 
+                                         layer.id.includes('border') || 
+                                         layer.id.includes('shadow');
 
                         if (isMinorRoad) {
-                            // الشوارع الفرعية
                             if (isCasing) {
-                                // دمج حدود الشوارع الفرعية مع الخلفية الجديدة حتى تختفي وتكون نظيفة
+                                // إخفاء تحديد الشوارع الفرعية
                                 map.setPaintProperty(layer.id, 'line-color', '#EBEBEB'); 
                             } else {
-                                // قلب الشارع الفرعي يصير أبيض ناصع
+                                // شوارع فرعية بيضاء
                                 map.setPaintProperty(layer.id, 'line-color', '#FFFFFF'); 
                             }
                         } else {
-                            // الشوارع الرئيسية
                             if (isCasing) {
-                                // تحديد الشوارع الرئيسية بلون داكن ومميز
-                                map.setPaintProperty(layer.id, 'line-color', '#9CA3AF'); 
+                                // تحديد الشوارع الرئيسية (الحدود الداكنة)
+                                map.setPaintProperty(layer.id, 'line-color', '#8B95A5'); 
                             } else {
-                                // قلب الشارع الرئيسي
+                                // قلب الشارع الرئيسي (رصاصي مزرق فاتح)
                                 map.setPaintProperty(layer.id, 'line-color', '#D0D9E0'); 
                             }
                         }
                     }
                 } catch (error) {
-                    // تجاهل الطبقات اللي ما تقبل التعديل 
+                    // نتجاهل الطبقات الممانعة
                 }
             });
         });
