@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ألك - فحص طبقات OpenFreeMap</title>
+    <title>ألك - خريطة مخصصة</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -11,10 +11,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
+        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; background-color: #FAFAFA;}
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
+        
         .bounce-marker {
-            transform: translate(-50%, -75%) scale(1.05) !important;
+            transform: translate(-50%, -80%) scale(1.05) !important;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
     </style>
@@ -23,19 +24,13 @@
 
     <div id="map"></div>
 
-    <!-- دبوس ألك -->
+    <!-- دبوس المنتصف -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         <div class="w-[34px] h-[34px] bg-[#FF6B00] rounded-full border-[3px] border-white shadow-sm flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
         </div>
         <div class="w-[2.5px] h-[22px] bg-[#4a4a4a] -mt-1 z-0 relative"></div>
         <div class="w-[14px] h-[6px] bg-black rounded-[50%] -mt-1 z-0" style="opacity: 0.18; filter: blur(3px);"></div>
-    </div>
-
-    <!-- شاشة عرض أسماء الطبقات (لأنك تشتغل من الموبايل) -->
-    <div id="layers-panel" class="absolute bottom-0 left-0 w-full max-h-[40vh] bg-black/80 text-green-400 p-4 overflow-y-auto z-50 text-left font-mono text-xs hidden" dir="ltr">
-        <div class="text-white font-bold mb-2 sticky top-0 bg-black/90 p-1">أسماء الطبقات (Layers) في هذا الستايل:</div>
-        <ul id="layers-list" class="pl-2"></ul>
     </div>
 
     <script>
@@ -45,37 +40,33 @@
             true 
         );
 
-        // 1. تشغيل خريطة OpenFreeMap الرسمية (ستايل Liberty)
+        // المحرك والستايل الجاهز
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'https://tiles.openfreemap.org/styles/liberty', // الستايل الرسمي
-            center: [44.3783246, 33.6668412],
+            style: 'https://tiles.openfreemap.org/styles/liberty', // الستايل اللي طلبه صديقك
+            center: [44.3783246, 33.6668412], 
             zoom: 17.6,
             bearing: 18,
+            pitch: 0,
+            antialias: true,
             attributionControl: false
         });
 
+        // حركة الدبوس
         const centerMarker = document.getElementById('center-marker');
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
-        // 2. طباعة أسماء الطبقات بعد تحميل الخريطة
+        // التعديل البرمجي (المرحلة 2 من خطة صديقك)
         map.on('load', () => {
-            const layers = map.getStyle().layers;
-            const layersPanel = document.getElementById('layers-panel');
-            const layersList = document.getElementById('layers-list');
-            
-            console.log("الطبقات:", layers); // للكونسول إذا كنت بحاسبة
-
-            // عرضها على الشاشة للموبايل
-            layers.forEach(layer => {
-                const li = document.createElement('li');
-                li.innerText = `- ${layer.id} (${layer.type})`;
-                layersList.appendChild(li);
-            });
-            
-            // إظهار اللوحة السفلية
-            layersPanel.classList.remove('hidden');
+            try {
+                // تعديل لون المباني
+                map.setPaintProperty('building', 'fill-color', '#F1EEE9');
+                // تعديل لون الماء (إذا اكو قريب عليك)
+                map.setPaintProperty('water', 'fill-color', '#D8EAFB');
+            } catch (error) {
+                console.log("بعض الطبقات غير موجودة بهذا الاسم، بس الخريطة راح تشتغل عادي.");
+            }
         });
 
     </script>
