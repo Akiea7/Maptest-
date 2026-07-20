@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ألك - النسخة الاحترافية</title>
+    <title>تجارب خريطة ألك - الأساس النظيف</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,12 +18,12 @@
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
         
-        /* (النقطة 5) لون الخلفية البديل إذا تأخر تحميل الخريطة */
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; background-color: #F4F5F7; }
+        /* لون الخلفية الاحترافي (المرحلة 6) */
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; background-color: #FAFAFA; }
         
-        /* حركة الدبوس الناعمة */
+        /* حركة الدبوس الناعمة (المرحلة 5) */
         .bounce-marker {
-            transform: translate(-50%, -75%) scale(1.05) !important;
+            transform: translate(-50%, -80%) scale(1.05) !important;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
     </style>
@@ -32,18 +32,18 @@
 
     <div id="map"></div>
 
-    <!-- (النقطة 6 و 7) الدبوس المحدث: 34px، عصا أطول، وظل 14px مع بلور -->
-    <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[60%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
+    <!-- دبوس منصة "ألك" (حسب مقاسات المرحلة السادسة: 34px وظل 14px) -->
+    <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         
-        <!-- الدائرة البرتقالية (كبرناها لـ 34px) -->
+        <!-- الدائرة -->
         <div class="w-[34px] h-[34px] bg-[#FF6B00] rounded-full border-[3px] border-white shadow-sm flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
         </div>
         
-        <!-- العصا الطويلة -->
-        <div class="w-[2px] h-[22px] bg-[#4a4a4a] -mt-1 z-0 relative"></div>
+        <!-- العصا -->
+        <div class="w-[2.5px] h-[22px] bg-[#4a4a4a] -mt-1 z-0 relative"></div>
         
-        <!-- الظل الدقيق حسب طلب صديقك -->
+        <!-- الظل -->
         <div class="w-[14px] h-[6px] bg-black rounded-[50%] -mt-1 z-0" style="opacity: 0.18; filter: blur(3px);"></div>
     </div>
 
@@ -56,20 +56,20 @@
             true 
         );
 
-        // الخريطة الاحترافية (بدون أي دوال ترقيع الألوان!)
+        // الخريطة الأساسية
         const map = new maplibregl.Map({
             container: 'map',
-            // (النقطة 1) استخدام ستايل Backdrop كبداية هادئة
-            // ملاحظة: لاحقاً من تسوي ستايلك الخاص بـ MapTiler Cloud، بس جيب الرابط مالته وخليه هنا!
+            // نستخدم ستايل Backdrop كبداية لأنه الأهدأ والأقرب للرصاصيات
             style: `https://api.maptiler.com/maps/backdrop/style.json?key=${MAPTILER_KEY}`,
-            center: [44.3783246, 33.6668412], // إحداثيات الطارمية
-            zoom: 17.6, // (النقطة 10) الزووم الدقيق
-            bearing: 18, // (النقطة 11) إعطاء انحراف بسيط للخريطة
+            center: [44.3783246, 33.6668412], // الطارمية
+            zoom: 17.6, // زووم احترافي
+            bearing: 18, // انحراف مريح للعين
             pitch: 0,
-            antialias: true, // (النقطة 12) حواف الشوارع الناعمة
+            antialias: true, // حواف ناعمة بـ 60fps
             attributionControl: false
         });
 
+        // حركة الدبوس الناعمة بدون مشاكل التجميد
         const centerMarker = document.getElementById('center-marker');
         
         map.on('movestart', () => {
@@ -79,8 +79,6 @@
         map.on('moveend', () => {
             centerMarker.classList.remove('bounce-marker');
         });
-
-        // (النقطة 9) تم حذف دالة renderTestPOIs بالكامل.
     </script>
 </body>
 </html>
