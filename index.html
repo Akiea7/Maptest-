@@ -3,20 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - أيقونات الأماكن الذكية</title>
+    <title>تطبيق ALAK - فحص الأماكن</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- زيادة رقم النسخة (v=3) لكسر الكاش وتحديث المتصفح -->
-    <script src="places.js?v=4"></script>
-
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
-        
         .bounce-marker {
             transform: translate(-50%, -80%) scale(1.05) !important;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -32,7 +28,6 @@
         <div>© OpenStreetMap</div>
     </div>
 
-    <!-- دبوس ALAK -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         <div class="w-[34px] h-[34px] bg-[#1E3A8A] rounded-full border-[3px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.2)] flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
@@ -47,6 +42,16 @@
             null,
             true 
         );
+
+        // بيانات الفحص المدمجة (حتى نضمن عدم وجود مشكلة بالملفات)
+        const testPlaces = {
+            "type": "FeatureCollection",
+            "features": [
+                {"type":"Feature","properties":{"title":"مستشفى الطارمية العام","icon":"hospital","priority":1},"geometry":{"type":"Point","coordinates":[44.3908767,33.664556]}},
+                {"type":"Feature","properties":{"title":"محطه وقود الطارمية","icon":"fuel","priority":2},"geometry":{"type":"Point","coordinates":[44.3933108,33.6652752]}},
+                {"type":"Feature","properties":{"title":"اسواق الرياضي","icon":"grocery","priority":5},"geometry":{"type":"Point","coordinates":[44.3756687,33.6672416]}}
+            ]
+        };
 
         const map = new maplibregl.Map({
             container: 'map',
@@ -88,46 +93,63 @@
             });
         }
 
-                        // طبقة واحدة متكاملة (أيقونة + نص) مع النظام الذكي
-                map.addLayer({
-                    'id': 'alak-places-layer',
-                    'type': 'symbol',
-                    'source': 'alak-custom-places',
-                    'minzoom': 14.5, 
-                    'layout': {
-                        'icon-image': ['concat', ['get', 'icon'], '_11'],
-                        'icon-size': 1.1,
-                        'text-field': ['get', 'title'],
-                        'text-font': safeMapFont, 
-                        
-                        // التعديل الأول: تكبير الخط تدريجياً (مثل ما اقترح صديقك)
-                        'text-size': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            14, 11, // في مستوى زوم 14، حجم الخط 11
-                            17, 13, // في مستوى زوم 17، حجم الخط 13
-                            20, 16  // في مستوى زوم 20، حجم الخط 16
-                        ],
-                        
-                        // التعديل الثاني: فرز الأماكن حسب الأولوية الذكية
-                        'symbol-sort-key': ['get', 'priority'],
-                        
-                        'text-offset': [0, 1.2],
-                        'text-anchor': 'top',
-                        'icon-allow-overlap': false, 
-                        'text-allow-overlap': false, 
-                        'icon-padding': 2, 
-                        'text-padding': 2,
-                        'icon-optional': true 
-                    },
-                    'paint': {
-                        'text-color': '#4a4a4a', 
-                        'text-halo-color': '#ffffff',
-                        'text-halo-width': 2
-                    }
-                });
-        
+        map.on('load', () => {
+            applyMapStyling(map);
+
+            let safeMapFont = ['Noto Sans Regular'];
+            const styleLayers = map.getStyle().layers;
+            for (let i = 0; i < styleLayers.length; i++) {
+                if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
+                    safeMapFont = styleLayers[i].layout['text-font'];
+                    break;
+                }
+            }
+
+            // إضافة البيانات المدمجة مباشرة
+            map.addSource('alak-custom-places', {
+                'type': 'geojson',
+                'data': testPlaces 
+            });
+
+            // إضافة الطبقة مع التعديلات الجديدة (الأولوية والتكبير)
+            map.addLayer({
+                'id': 'alak-places-layer',
+                'type': 'symbol',
+                'source': 'alak-custom-places',
+                'minzoom': 13, // قللت المين زوم حتى نضمن تطلع 
+                'layout': {
+                    'icon-image': ['concat', ['get', 'icon'], '_11'],
+                    'icon-size': 1.1,
+                    'text-field': ['get', 'title'],
+                    'text-font': safeMapFont, 
+                    
+                    'text-size': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        14, 11,
+                        17, 13,
+                        20, 16
+                    ],
+                    
+                    // استخدام coalesce كخط دفاعي: إذا المكان مابيه أولوية يعطيه 10 أوتوماتيك
+                    'symbol-sort-key': ['coalesce', ['get', 'priority'], 10],
+                    
+                    'text-offset': [0, 1.2],
+                    'text-anchor': 'top',
+                    'icon-allow-overlap': false, 
+                    'text-allow-overlap': false, 
+                    'icon-padding': 2, 
+                    'text-padding': 2,
+                    'icon-optional': true 
+                },
+                'paint': {
+                    'text-color': '#1E3A8A', // سويته أزرق غامق حتى يبين فوراً
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 2
+                }
+            });
+        });
     </script>
 </body>
 </html>
