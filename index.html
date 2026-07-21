@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - فحص الأماكن</title>
+    <title>تطبيق ALAK - خريطة الأماكن</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- قراءة ملف الأماكن الخارجي بنسخة جديدة لكسر الكاش -->
+    <script src="places.js?v=6"></script>
 
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
@@ -42,16 +45,6 @@
             null,
             true 
         );
-
-        // بيانات الفحص المدمجة (حتى نضمن عدم وجود مشكلة بالملفات)
-        const testPlaces = {
-            "type": "FeatureCollection",
-            "features": [
-                {"type":"Feature","properties":{"title":"مستشفى الطارمية العام","icon":"hospital","priority":1},"geometry":{"type":"Point","coordinates":[44.3908767,33.664556]}},
-                {"type":"Feature","properties":{"title":"محطه وقود الطارمية","icon":"fuel","priority":2},"geometry":{"type":"Point","coordinates":[44.3933108,33.6652752]}},
-                {"type":"Feature","properties":{"title":"اسواق الرياضي","icon":"grocery","priority":5},"geometry":{"type":"Point","coordinates":[44.3756687,33.6672416]}}
-            ]
-        };
 
         const map = new maplibregl.Map({
             container: 'map',
@@ -96,59 +89,60 @@
         map.on('load', () => {
             applyMapStyling(map);
 
-            let safeMapFont = ['Noto Sans Regular'];
-            const styleLayers = map.getStyle().layers;
-            for (let i = 0; i < styleLayers.length; i++) {
-                if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
-                    safeMapFont = styleLayers[i].layout['text-font'];
-                    break;
+            if (typeof alakPlaces !== 'undefined') {
+                let safeMapFont = ['Noto Sans Regular'];
+                const styleLayers = map.getStyle().layers;
+                for (let i = 0; i < styleLayers.length; i++) {
+                    if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
+                        safeMapFont = styleLayers[i].layout['text-font'];
+                        break;
+                    }
                 }
+
+                map.addSource('alak-custom-places', {
+                    'type': 'geojson',
+                    'data': alakPlaces 
+                });
+
+                map.addLayer({
+                    'id': 'alak-places-layer',
+                    'type': 'symbol',
+                    'source': 'alak-custom-places',
+                    'minzoom': 13, 
+                    'layout': {
+                        'icon-image': ['concat', ['get', 'icon'], '_11'],
+                        'icon-size': 1.1,
+                        'text-field': ['get', 'title'],
+                        'text-font': safeMapFont, 
+                        
+                        'text-size': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            14, 11,
+                            17, 13,
+                            20, 16
+                        ],
+                        
+                        'symbol-sort-key': ['coalesce', ['get', 'priority'], 10],
+                        
+                        'text-offset': [0, 1.2],
+                        'text-anchor': 'top',
+                        'icon-allow-overlap': false, 
+                        'text-allow-overlap': false, 
+                        'icon-padding': 2, 
+                        'text-padding': 2,
+                        'icon-optional': true 
+                    },
+                    'paint': {
+                        'text-color': '#4a4a4a', 
+                        'text-halo-color': '#ffffff',
+                        'text-halo-width': 2
+                    }
+                });
+            } else {
+                console.error("ملف places.js ما قرأ! تأكد من رفعه بدون أخطاء.");
             }
-
-            // إضافة البيانات المدمجة مباشرة
-            map.addSource('alak-custom-places', {
-                'type': 'geojson',
-                'data': testPlaces 
-            });
-
-            // إضافة الطبقة مع التعديلات الجديدة (الأولوية والتكبير)
-            map.addLayer({
-                'id': 'alak-places-layer',
-                'type': 'symbol',
-                'source': 'alak-custom-places',
-                'minzoom': 13, // قللت المين زوم حتى نضمن تطلع 
-                'layout': {
-                    'icon-image': ['concat', ['get', 'icon'], '_11'],
-                    'icon-size': 1.1,
-                    'text-field': ['get', 'title'],
-                    'text-font': safeMapFont, 
-                    
-                    'text-size': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        14, 11,
-                        17, 13,
-                        20, 16
-                    ],
-                    
-                    // استخدام coalesce كخط دفاعي: إذا المكان مابيه أولوية يعطيه 10 أوتوماتيك
-                    'symbol-sort-key': ['coalesce', ['get', 'priority'], 10],
-                    
-                    'text-offset': [0, 1.2],
-                    'text-anchor': 'top',
-                    'icon-allow-overlap': false, 
-                    'text-allow-overlap': false, 
-                    'icon-padding': 2, 
-                    'text-padding': 2,
-                    'icon-optional': true 
-                },
-                'paint': {
-                    'text-color': '#1E3A8A', // سويته أزرق غامق حتى يبين فوراً
-                    'text-halo-color': '#ffffff',
-                    'text-halo-width': 2
-                }
-            });
         });
     </script>
 </body>
