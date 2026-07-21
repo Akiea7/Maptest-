@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - خريطة الأماكن</title>
+    <title>تطبيق ALAK - خريطة الأماكن (النسخة المستقرة)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- خدعة كسر الكاش: إضافة ?v=1 تجبر المتصفح على تحميل الملف الجديد -->
-    <script src="places.js?v=1"></script>
+    <!-- استدعاء ملف الأماكن -->
+    <script src="places.js?v=2"></script>
 
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
@@ -53,7 +53,7 @@
             container: 'map',
             style: 'https://tiles.openfreemap.org/styles/liberty', 
             center: [44.3783246, 33.6668412], 
-            zoom: 15.5, // قللت الزوم شوية حتى تشوف الأماكن كلها طالعة
+            zoom: 15.5,
             bearing: 18,
             pitch: 0,
             antialias: true,
@@ -66,7 +66,6 @@
 
         function applyMapStyling(mapInstance) {
             const layers = mapInstance.getStyle().layers;
-
             layers.forEach(layer => {
                 try {
                     const id = layer.id;
@@ -93,16 +92,25 @@
         map.on('load', () => {
             applyMapStyling(map);
 
-            // فحص وتشغيل الأماكن
             if (typeof alakPlaces !== 'undefined') {
-                console.log("تم قراءة ملف الأماكن بنجاح!");
                 
+                // 1. استخراج خط آمن ومدعوم 100% من الخريطة نفسها
+                let safeMapFont = ['Noto Sans Regular']; // خط احتياطي
+                const styleLayers = map.getStyle().layers;
+                for (let i = 0; i < styleLayers.length; i++) {
+                    if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
+                        safeMapFont = styleLayers[i].layout['text-font'];
+                        break; // بس نلزم خط شغال، نتوقف
+                    }
+                }
+
+                // 2. إضافة مصدر البيانات
                 map.addSource('alak-custom-places', {
                     'type': 'geojson',
                     'data': alakPlaces
                 });
 
-                // النقاط الزرقاء لضمان الظهور
+                // 3. طبقة النقاط الزرقاء (مستقرة ولا تنهار)
                 map.addLayer({
                     'id': 'alak-places-points',
                     'type': 'circle',
@@ -115,17 +123,18 @@
                     }
                 });
 
-                // النصوص
+                // 4. طبقة النصوص باستخدام الخط الآمن المستخرج
                 map.addLayer({
                     'id': 'alak-places-labels',
                     'type': 'symbol',
                     'source': 'alak-custom-places',
                     'layout': {
                         'text-field': ['get', 'title'],
-                        'text-font': ['Open Sans Regular'],
+                        'text-font': safeMapFont, // استخدام الخط المسروق والآمن
                         'text-offset': [0, 1.2],
                         'text-anchor': 'top',
-                        'text-size': 13
+                        'text-size': 13,
+                        'text-allow-overlap': false
                     },
                     'paint': {
                         'text-color': '#1E3A8A',
@@ -133,8 +142,6 @@
                         'text-halo-width': 2
                     }
                 });
-            } else {
-                alert("تنبيه: ملف الأماكن places.js لم يتم تحميله! تأكد من مسح الكاش.");
             }
         });
     </script>
