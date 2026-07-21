@@ -88,60 +88,46 @@
             });
         }
 
-        map.on('load', () => {
-            applyMapStyling(map);
-
-            if (typeof alakPlaces !== 'undefined') {
-                
-                let safeMapFont = ['Noto Sans Regular'];
-                const styleLayers = map.getStyle().layers;
-                for (let i = 0; i < styleLayers.length; i++) {
-                    if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
-                        safeMapFont = styleLayers[i].layout['text-font'];
-                        break;
-                    }
-                }
-
-                map.addSource('alak-custom-places', {
-                    'type': 'geojson',
-                    'data': alakPlaces
-                });
-
-                // طبقة واحدة متكاملة (أيقونة + نص) مع نظام إخفاء الأماكن عند الزوم
+                        // طبقة واحدة متكاملة (أيقونة + نص) مع النظام الذكي
                 map.addLayer({
                     'id': 'alak-places-layer',
                     'type': 'symbol',
                     'source': 'alak-custom-places',
-                    'minzoom': 14.5, // السحر الأول: الأماكن ما تظهر إذا الزوم أبعد من 14.5 حتى ما تصير هوسة
+                    'minzoom': 14.5, 
                     'layout': {
-                        // إعدادات الأيقونة
-                        'icon-image': ['concat', ['get', 'icon'], '_11'], // سحب الأيقونة من مكتبة الخريطة
+                        'icon-image': ['concat', ['get', 'icon'], '_11'],
                         'icon-size': 1.1,
-                        
-                        // إعدادات النص
                         'text-field': ['get', 'title'],
                         'text-font': safeMapFont, 
+                        
+                        // التعديل الأول: تكبير الخط تدريجياً (مثل ما اقترح صديقك)
+                        'text-size': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            14, 11, // في مستوى زوم 14، حجم الخط 11
+                            17, 13, // في مستوى زوم 17، حجم الخط 13
+                            20, 16  // في مستوى زوم 20، حجم الخط 16
+                        ],
+                        
+                        // التعديل الثاني: فرز الأماكن حسب الأولوية الذكية
+                        'symbol-sort-key': ['get', 'priority'],
+                        
                         'text-offset': [0, 1.2],
                         'text-anchor': 'top',
-                        'text-size': 12,
-                        
-                        // السحر الثاني: منع التداخل (Collision Detection)
-                        'icon-allow-overlap': false, // إذا تقاربت الأيقونات، اخفي الأقل أهمية
-                        'text-allow-overlap': false, // نفس الشيء للنص
-                        'icon-padding': 2, // مسافة أمان حول الأيقونة
+                        'icon-allow-overlap': false, 
+                        'text-allow-overlap': false, 
+                        'icon-padding': 2, 
                         'text-padding': 2,
-                        
-                        // في حال الأيقونة مفقودة من الخريطة، اعرض النص فقط ولا تسوي كراش
                         'icon-optional': true 
                     },
                     'paint': {
-                        'text-color': '#4a4a4a', // لون رصاصي داكن احترافي
+                        'text-color': '#4a4a4a', 
                         'text-halo-color': '#ffffff',
                         'text-halo-width': 2
                     }
                 });
-            }
-        });
+        
     </script>
 </body>
 </html>
