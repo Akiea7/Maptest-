@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - خريطة الأماكن (النسخة المستقرة)</title>
+    <title>تطبيق ALAK - أيقونات الأماكن الذكية</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- استدعاء ملف الأماكن -->
-    <script src="places.js?v=2"></script>
+    <!-- زيادة رقم النسخة (v=3) لكسر الكاش وتحديث المتصفح -->
+    <script src="places.js?v=3"></script>
 
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
@@ -27,13 +27,12 @@
 
     <div id="map"></div>
 
-    <!-- حقوق تطبيق ALAK -->
     <div class="absolute bottom-12 left-4 z-30 text-[11px] text-gray-500 font-sans leading-snug pointer-events-none select-none drop-shadow-sm flex flex-col items-start" dir="ltr">
         <div class="font-semibold text-gray-600">© ALAK</div>
         <div>© OpenStreetMap</div>
     </div>
 
-    <!-- دبوس ALAK الاحترافي -->
+    <!-- دبوس ALAK -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         <div class="w-[34px] h-[34px] bg-[#1E3A8A] rounded-full border-[3px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.2)] flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
@@ -94,50 +93,49 @@
 
             if (typeof alakPlaces !== 'undefined') {
                 
-                // 1. استخراج خط آمن ومدعوم 100% من الخريطة نفسها
-                let safeMapFont = ['Noto Sans Regular']; // خط احتياطي
+                let safeMapFont = ['Noto Sans Regular'];
                 const styleLayers = map.getStyle().layers;
                 for (let i = 0; i < styleLayers.length; i++) {
                     if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
                         safeMapFont = styleLayers[i].layout['text-font'];
-                        break; // بس نلزم خط شغال، نتوقف
+                        break;
                     }
                 }
 
-                // 2. إضافة مصدر البيانات
                 map.addSource('alak-custom-places', {
                     'type': 'geojson',
                     'data': alakPlaces
                 });
 
-                // 3. طبقة النقاط الزرقاء (مستقرة ولا تنهار)
+                // طبقة واحدة متكاملة (أيقونة + نص) مع نظام إخفاء الأماكن عند الزوم
                 map.addLayer({
-                    'id': 'alak-places-points',
-                    'type': 'circle',
-                    'source': 'alak-custom-places',
-                    'paint': {
-                        'circle-radius': 5,
-                        'circle-color': '#1E3A8A',
-                        'circle-stroke-width': 2,
-                        'circle-stroke-color': '#ffffff'
-                    }
-                });
-
-                // 4. طبقة النصوص باستخدام الخط الآمن المستخرج
-                map.addLayer({
-                    'id': 'alak-places-labels',
+                    'id': 'alak-places-layer',
                     'type': 'symbol',
                     'source': 'alak-custom-places',
+                    'minzoom': 14.5, // السحر الأول: الأماكن ما تظهر إذا الزوم أبعد من 14.5 حتى ما تصير هوسة
                     'layout': {
+                        // إعدادات الأيقونة
+                        'icon-image': ['concat', ['get', 'icon'], '_11'], // سحب الأيقونة من مكتبة الخريطة
+                        'icon-size': 1.1,
+                        
+                        // إعدادات النص
                         'text-field': ['get', 'title'],
-                        'text-font': safeMapFont, // استخدام الخط المسروق والآمن
+                        'text-font': safeMapFont, 
                         'text-offset': [0, 1.2],
                         'text-anchor': 'top',
-                        'text-size': 13,
-                        'text-allow-overlap': false
+                        'text-size': 12,
+                        
+                        // السحر الثاني: منع التداخل (Collision Detection)
+                        'icon-allow-overlap': false, // إذا تقاربت الأيقونات، اخفي الأقل أهمية
+                        'text-allow-overlap': false, // نفس الشيء للنص
+                        'icon-padding': 2, // مسافة أمان حول الأيقونة
+                        'text-padding': 2,
+                        
+                        // في حال الأيقونة مفقودة من الخريطة، اعرض النص فقط ولا تسوي كراش
+                        'icon-optional': true 
                     },
                     'paint': {
-                        'text-color': '#1E3A8A',
+                        'text-color': '#4a4a4a', // لون رصاصي داكن احترافي
                         'text-halo-color': '#ffffff',
                         'text-halo-width': 2
                     }
