@@ -91,7 +91,7 @@
             });
         }
 
-        map.on('load', () => {
+                map.on('load', () => {
             applyMapStyling(map);
 
             // إضافة الأماكن الخاصة بتطبيق ألك
@@ -101,28 +101,47 @@
                     'data': alakPlaces
                 });
 
+                // 1. طبقة النقطة (لضمان ظهور المكان 100% حتى لو الأيقونة مفقودة)
                 map.addLayer({
-                    'id': 'alak-places-layer',
+                    'id': 'alak-places-points',
+                    'type': 'circle',
+                    'source': 'alak-custom-places',
+                    'paint': {
+                        'circle-radius': 4.5,
+                        'circle-color': '#1E3A8A', // أزرق داكن (لون تطبيقك)
+                        'circle-stroke-width': 1.5,
+                        'circle-stroke-color': '#ffffff' // إطار أبيض يفصلها عن الشارع
+                    }
+                });
+
+                // 2. طبقة النص والأيقونة
+                map.addLayer({
+                    'id': 'alak-places-labels',
                     'type': 'symbol',
                     'source': 'alak-custom-places',
                     'layout': {
-                        // جلب الأيقونة من خصائص GeoJSON اللي بالملف
-                        'icon-image': ['concat', ['get', 'icon'], '_11'], // خريطة Liberty تستخدم لاحقة _11 للأيقونات
-                        'icon-size': 1,
+                        // نحاول نجيب الأيقونة
+                        'icon-image': ['concat', ['get', 'icon'], '_11'], 
                         'text-field': ['get', 'title'],
-                        'text-font': ['Noto Sans Arabic Regular', 'Open Sans Regular'], // الخط
-                        'text-offset': [0, 0.6], // مسافة بين النص والأيقونة
+                        // نستخدم الخط المدعوم أساساً لتفادي اختفاء الطبقة
+                        'text-font': ['Open Sans Regular'], 
+                        'text-offset': [0, 1], // ننزل النص تحت النقطة شوية
                         'text-anchor': 'top',
-                        'text-size': 13
+                        'text-size': 12,
+                        'icon-allow-overlap': true,
+                        'text-allow-overlap': false
                     },
                     'paint': {
-                        'text-color': '#4a4a4a', // لون النص
-                        'text-halo-color': '#ffffff', // هالة بيضاء حول النص حتى يقرأ بوضوح
-                        'text-halo-width': 1.5
+                        'text-color': '#1E3A8A', // لون النص
+                        'text-halo-color': '#ffffff', // هالة بيضاء لسهولة القراءة
+                        'text-halo-width': 2
                     }
                 });
+            } else {
+                console.warn("ملف places.js لم يتم تحميله بشكل صحيح.");
             }
         });
+
 
     </script>
 </body>
