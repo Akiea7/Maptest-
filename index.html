@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - خريطة صافية 100%</title>
+    <title>تطبيق ALAK - خريطة صافية وسريعة</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- قراءة ملف الأماكن الخارجي -->
-    <script src="places.js?v=10"></script>
+    <script src="places.js?v=11"></script>
 
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
@@ -49,7 +49,7 @@
 
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'alak-style.json', // 🛑 رجعناها لاسمها الصافي حتى يقرأها المتصفح بدون مشاكل
+            style: 'alak-style.json', 
             center: [44.3783246, 33.6668412], 
             zoom: 15.5,
             bearing: 18,
@@ -63,20 +63,6 @@
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
         map.on('load', () => {
-            
-            // 🛑 إخفاء أي اسم منطقة أو مدينة جاي وية الخريطة لمنع التكرار وية أماكنك
-            const layers = map.getStyle().layers;
-            if (layers) {
-                layers.forEach(layer => {
-                    // إذا اسم الطبقة يحتوي كلمة place راح نخفيها
-                    if (layer.id.includes('poi') || layer.id.includes('place')) {
-                        try {
-                            map.setLayoutProperty(layer.id, 'visibility', 'none');
-                        } catch (e) {}
-                    }
-                });
-            }
-
             if (typeof alakPlaces !== 'undefined') {
                 let safeMapFont = ['Noto Sans Regular'];
                 const styleLayers = map.getStyle().layers;
@@ -104,7 +90,6 @@
                         'icon-size': 1.1,
                         'text-field': ['get', 'title'],
                         'text-font': safeMapFont, 
-                        
                         'text-size': [
                             'interpolate',
                             ['linear'],
@@ -113,9 +98,7 @@
                             17, 13,
                             20, 16
                         ],
-                        
                         'symbol-sort-key': ['coalesce', ['get', 'priority'], 10],
-                        
                         'text-offset': [0, 1.2],
                         'text-anchor': 'top',
                         'icon-allow-overlap': false, 
@@ -125,7 +108,7 @@
                         'icon-optional': true 
                     },
                     'paint': {
-                        'text-color': '#1E3A8A', // لون مميز لأماكنك حتى تبرز
+                        'text-color': '#1E3A8A', 
                         'text-halo-color': '#ffffff',
                         'text-halo-width': 2
                     }
