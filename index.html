@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - ستايل الخريطة الاحترافي</title>
+    <title>تطبيق ALAK - ستايل الخريطة الحي</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -61,9 +61,6 @@
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
-        // ==========================================
-        // دالة الستايل المنظمة
-        // ==========================================
         function applyMapStyling(mapInstance) {
             const layers = mapInstance.getStyle().layers;
 
@@ -71,26 +68,24 @@
                 try {
                     const id = layer.id;
 
-                    // 1. الخلفية (أغمق قليلاً حتى تبرز الشوارع البيضاء)
+                    // 1. الخلفية
                     if (id.includes('background')) {
                         mapInstance.setPaintProperty(id, 'background-color', '#E2E5E9');
                     } 
-                    // 2. المياه والحدائق (ألوان بلي الهادئة)
+                    // 2. المياه والحدائق
                     else if (id.includes('water')) {
                         mapInstance.setPaintProperty(id, 'fill-color', '#C3D8E6');
                     }
                     else if (id.includes('park') || id.includes('green') || id.includes('pitch')) {
                         mapInstance.setPaintProperty(id, 'fill-color', '#CFE1D4');
                     }
-                    // 3. المباني (لون متناسق يبرز عن الخلفية)
+                    // 3. المباني
                     else if (id.includes('building')) {
                         mapInstance.setPaintProperty(id, 'fill-color', '#D5D9DE');
                     }
-                    // 4. إخفاء الـ POI (لتبسيط الخريطة وجعلها نظيفة مثل بلي)
-                    else if (id.includes('poi')) {
-                        mapInstance.setLayoutProperty(id, 'visibility', 'none');
-                    }
-                    // 5. هندسة الشوارع
+                    // (ملاحظة: تم حذف كود إخفاء الـ POI حتى ترجع المعالم والمحلات تظهر بشكل طبيعي)
+
+                    // 4. هندسة الشوارع
                     else if (layer.type === 'line' && (id.includes('highway') || id.includes('road') || id.includes('bridge') || id.includes('tunnel'))) {
                         
                         const isMinorRoad = id.includes('minor') || id.includes('residential') || id.includes('service') || id.includes('unclassified') || id.includes('path') || id.includes('pedestrian');
@@ -98,24 +93,20 @@
 
                         if (isMinorRoad) {
                             if (isCasing) {
-                                // دمج حدود الشوارع الفرعية مع الخلفية
                                 mapInstance.setPaintProperty(id, 'line-color', '#E2E5E9'); 
                             } else {
-                                // شوارع فرعية بيضاء ناصعة
                                 mapInstance.setPaintProperty(id, 'line-color', '#FFFFFF'); 
                             }
                         } else {
                             if (isCasing) {
-                                // التحديد الداكن للشوارع الرئيسية (السر هنا لعدم ضياع الخريطة)
                                 mapInstance.setPaintProperty(id, 'line-color', '#A5B1C2'); 
                             } else {
-                                // قلب الشارع الرئيسي (رصاصي فاتح جداً مقارب للأبيض)
                                 mapInstance.setPaintProperty(id, 'line-color', '#F8F9FA'); 
                             }
                         }
                     }
                 } catch (e) {
-                    console.warn(`تجاهل تعديل الطبقة: ${layer.id}`, e);
+                    // تجاهل بصمت
                 }
             });
         }
