@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - خريطة الأماكن</title>
+    <title>تطبيق ALAK - خريطة الأماكن الصافية</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- قراءة ملف الأماكن الخارجي بنسخة جديدة لكسر الكاش -->
-    <script src="places.js?v=6"></script>
+    <!-- قراءة ملف الأماكن الخارجي -->
+    <script src="places.js?v=7"></script>
 
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
@@ -66,6 +66,13 @@
             layers.forEach(layer => {
                 try {
                     const id = layer.id;
+                    
+                    // التعديل الجديد: إخفاء الأماكن الافتراضية (POIs) الخاصة بالخريطة لمنع التكرار
+                    if (id.includes('poi')) {
+                        mapInstance.setLayoutProperty(id, 'visibility', 'none');
+                        return; // نوقف التلوين هنا لأن الطبقة مخفية أصلاً
+                    }
+
                     if (id.includes('background')) mapInstance.setPaintProperty(id, 'background-color', '#E2E5E9');
                     else if (id.includes('water')) mapInstance.setPaintProperty(id, 'fill-color', '#C3D8E6');
                     else if (id.includes('park') || id.includes('green') || id.includes('pitch')) mapInstance.setPaintProperty(id, 'fill-color', '#CFE1D4');
