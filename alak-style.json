@@ -1,169 +1,103 @@
 {
   "version": 8,
-  "name": "ALAK App Style",
-  "metadata": {},
+  "name": "My App Map Style",
+  "metadata": {
+    "mapbox:autocomposite": false,
+    "maputnik:renderer": "mljs"
+  },
   "sources": {
-    "openfreemap": {
+    "osm-vector": {
       "type": "vector",
-      "url": "https://tiles.openfreemap.org/planet.json"
+      "url": "https://api.maptiler.com/tiles/v3/tiles.json?key=YOUR_API_KEY_HERE"
     }
   },
-  "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+  "sprite": "https://api.maptiler.com/maps/streets/sprite",
+  "glyphs": "https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=YOUR_API_KEY_HERE",
   "layers": [
     {
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "#E2E5E9"
+        "background-color": "#f8f4f0"
       }
     },
     {
-      "id": "park",
+      "id": "landcover-grass",
       "type": "fill",
-      "source": "openfreemap",
-      "source-layer": "park",
+      "source": "osm-vector",
+      "source-layer": "landcover",
+      "filter": ["==", "class", "grass"],
       "paint": {
-        "fill-color": "#CFE1D4"
+        "fill-color": "#d8e8c8",
+        "fill-opacity": 0.8
       }
     },
     {
       "id": "water",
       "type": "fill",
-      "source": "openfreemap",
+      "source": "osm-vector",
       "source-layer": "water",
       "paint": {
-        "fill-color": "#C3D8E6"
+        "fill-color": "#a0c8f0"
       }
     },
     {
-      "id": "building",
+      "id": "roads-secondary",
+      "type": "line",
+      "source": "osm-vector",
+      "source-layer": "transportation",
+      "filter": ["in", "class", "secondary", "tertiary"],
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": 1.5
+      }
+    },
+    {
+      "id": "roads-primary",
+      "type": "line",
+      "source": "osm-vector",
+      "source-layer": "transportation",
+      "filter": ["==", "class", "primary"],
+      "paint": {
+        "line-color": "#ffdf76",
+        "line-width": 2
+      }
+    },
+    {
+      "id": "roads-highway",
+      "type": "line",
+      "source": "osm-vector",
+      "source-layer": "transportation",
+      "filter": ["==", "class", "motorway"],
+      "paint": {
+        "line-color": "#fc8",
+        "line-width": 2.5
+      }
+    },
+    {
+      "id": "buildings",
       "type": "fill",
-      "source": "openfreemap",
+      "source": "osm-vector",
       "source-layer": "building",
       "paint": {
-        "fill-color": "#D5D9DE",
-        "fill-opacity": 0.8
+        "fill-color": "#e0dfdf",
+        "fill-outline-color": "#cfcfcf"
       }
     },
     {
-      "id": "road_minor_casing",
-      "type": "line",
-      "source": "openfreemap",
-      "source-layer": "transportation",
-      "filter": ["match", ["get", "class"], ["minor", "residential", "service", "path", "pedestrian"], true, false],
-      "layout": {
-        "line-join": "round",
-        "line-cap": "round"
-      },
-      "paint": {
-        "line-color": "#E2E5E9",
-        "line-width": {
-          "base": 1.2,
-          "stops": [[13, 2], [20, 12]]
-        }
-      }
-    },
-    {
-      "id": "road_minor",
-      "type": "line",
-      "source": "openfreemap",
-      "source-layer": "transportation",
-      "filter": ["match", ["get", "class"], ["minor", "residential", "service", "path", "pedestrian"], true, false],
-      "layout": {
-        "line-join": "round",
-        "line-cap": "round"
-      },
-      "paint": {
-        "line-color": "#FFFFFF",
-        "line-width": {
-          "base": 1.2,
-          "stops": [[13, 1], [20, 9]]
-        }
-      }
-    },
-    {
-      "id": "road_major_casing",
-      "type": "line",
-      "source": "openfreemap",
-      "source-layer": "transportation",
-      "filter": ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary", "tertiary"], true, false],
-      "layout": {
-        "line-join": "round",
-        "line-cap": "round"
-      },
-      "paint": {
-        "line-color": "#A5B1C2",
-        "line-width": {
-          "base": 1.2,
-          "stops": [[10, 3], [20, 16]]
-        }
-      }
-    },
-    {
-      "id": "road_major",
-      "type": "line",
-      "source": "openfreemap",
-      "source-layer": "transportation",
-      "filter": ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary", "tertiary"], true, false],
-      "layout": {
-        "line-join": "round",
-        "line-cap": "round"
-      },
-      "paint": {
-        "line-color": "#FDF2D6",
-        "line-width": {
-          "base": 1.2,
-          "stops": [[10, 2], [20, 13]]
-        }
-      }
-    },
-    {
-      "id": "road_name",
+      "id": "place-labels",
       "type": "symbol",
-      "source": "openfreemap",
-      "source-layer": "transportation_name",
-      "layout": {
-        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"]],
-        "text-font": ["Noto Sans Regular"],
-        "symbol-placement": "line",
-        "text-size": {"stops": [[12, 10], [18, 14]]}
-      },
-      "paint": {
-        "text-color": "#6b7280",
-        "text-halo-color": "#ffffff",
-        "text-halo-width": 2
-      }
-    },
-    {
-      "id": "place_label_city",
-      "type": "symbol",
-      "source": "openfreemap",
+      "source": "osm-vector",
       "source-layer": "place",
-      "filter": ["==", ["get", "class"], "city"],
+      "minzoom": 5,
       "layout": {
-        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"]],
-        "text-font": ["Noto Sans Bold"],
-        "text-size": {"stops": [[8, 14], [16, 22]]}
-      },
-      "paint": {
-        "text-color": "#1E3A8A",
-        "text-halo-color": "#ffffff",
-        "text-halo-width": 2
-      }
-    },
-    {
-      "id": "place_label_other",
-      "type": "symbol",
-      "source": "openfreemap",
-      "source-layer": "place",
-      "filter": ["!=", ["get", "class"], "city"],
-      "layout": {
-        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"]],
+        "text-field": "{name:latin}\n{name:nonlatin}",
         "text-font": ["Noto Sans Regular"],
-        "text-size": {"stops": [[10, 11], [16, 15]]}
+        "text-size": 12,
+        "text-anchor": "center"
       },
       "paint": {
-        "text-color": "#4a4a4a",
+        "text-color": "#333333",
         "text-halo-color": "#ffffff",
         "text-halo-width": 1.5
       }
