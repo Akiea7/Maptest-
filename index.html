@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - النسخة الاحترافية (Native Style)</title>
+    <title>تطبيق ALAK - النسخة الاحترافية (بدون تكرار)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- قراءة ملف الأماكن الخارجي -->
-    <script src="places.js?v=8"></script>
+    <!-- قراءة ملف الأماكن الخارجي مع كسر الكاش -->
+    <script src="places.js?v=9"></script>
 
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
@@ -49,7 +49,7 @@
 
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'alak-style.json?v=3', // هنا السحر: الخريطة تقرأ ستايلك الخاص مباشرة!
+            style: 'alak-style.json?v=4', // تم تغيير الرقم لكسر الكاش وإجبار المتصفح يقرأ الستايل الجديد
             center: [44.3783246, 33.6668412], 
             zoom: 15.5,
             bearing: 18,
@@ -63,6 +63,17 @@
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
         map.on('load', () => {
+            
+            // 🛑 الإخفاء الإجباري: هذا الكود يمسح أي مكان أو منطقة جاية وية الخريطة الأصلية
+            const layers = map.getStyle().layers;
+            layers.forEach(layer => {
+                if (layer.id.includes('poi') || layer.id.includes('place')) {
+                    try {
+                        map.setLayoutProperty(layer.id, 'visibility', 'none');
+                    } catch (e) {}
+                }
+            });
+
             if (typeof alakPlaces !== 'undefined') {
                 let safeMapFont = ['Noto Sans Regular'];
                 const styleLayers = map.getStyle().layers;
