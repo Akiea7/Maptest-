@@ -1,4 +1,4 @@
-const alakPlaces = {
+var alakPlaces = {
     "type": "FeatureCollection",
     "features": [
         {"type":"Feature","properties":{"title":"مطعم ومشويات مشتاق السلماني","icon":"restaurant"},"geometry":{"type":"Point","coordinates":[44.3796413,33.6669058]}},
