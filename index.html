@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - ستايل الخريطة الحي</title>
+    <title>تطبيق ALAK - تمييز الشوارع الرئيسية</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -83,8 +83,6 @@
                     else if (id.includes('building')) {
                         mapInstance.setPaintProperty(id, 'fill-color', '#D5D9DE');
                     }
-                    // (ملاحظة: تم حذف كود إخفاء الـ POI حتى ترجع المعالم والمحلات تظهر بشكل طبيعي)
-
                     // 4. هندسة الشوارع
                     else if (layer.type === 'line' && (id.includes('highway') || id.includes('road') || id.includes('bridge') || id.includes('tunnel'))) {
                         
@@ -95,13 +93,16 @@
                             if (isCasing) {
                                 mapInstance.setPaintProperty(id, 'line-color', '#E2E5E9'); 
                             } else {
+                                // الشوارع الفرعية: بيضاء
                                 mapInstance.setPaintProperty(id, 'line-color', '#FFFFFF'); 
                             }
                         } else {
                             if (isCasing) {
+                                // حدود الشوارع الرئيسية
                                 mapInstance.setPaintProperty(id, 'line-color', '#A5B1C2'); 
                             } else {
-                                mapInstance.setPaintProperty(id, 'line-color', '#F8F9FA'); 
+                                // التعديل الجديد: الشوارع الرئيسية بلون كريمي/أصفر فاتح مميز
+                                mapInstance.setPaintProperty(id, 'line-color', '#FDF2D6'); 
                             }
                         }
                     }
