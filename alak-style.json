@@ -10,6 +10,13 @@
     "openmaptiles": {
       "type": "vector",
       "url": "https://tiles.openfreemap.org/planet"
+    },
+    "alak_custom_data": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": []
+      }
     }
   },
   "sprite": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm",
@@ -103,10 +110,25 @@
       "source": "openmaptiles",
       "source-layer": "building",
       "minzoom": 13,
+      "maxzoom": 14,
       "paint": {
         "fill-color": "#d5d9de",
         "fill-outline-color": "#b8bec5",
         "fill-opacity": 0.8
+      }
+    },
+    {
+      "id": "building_3d_extrusion",
+      "type": "fill-extrusion",
+      "source": "openmaptiles",
+      "source-layer": "building",
+      "minzoom": 14,
+      "filter": ["all", ["has", "height"], [">", ["get", "height"], 0]],
+      "paint": {
+        "fill-extrusion-color": ["interpolate", ["linear"], ["zoom"], 14, "#d5d9de", 16, "#d0d4d9"],
+        "fill-extrusion-height": ["get", "height"],
+        "fill-extrusion-base": ["coalesce", ["get", "min_height"], 0],
+        "fill-extrusion-opacity": 0.8
       }
     },
     {
@@ -182,6 +204,27 @@
       }
     },
     {
+      "id": "place_label_state",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "place",
+      "minzoom": 5,
+      "maxzoom": 8,
+      "filter": ["==", ["get", "class"], "state"],
+      "layout": {
+        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"], ["get", "name:en"]],
+        "text-font": ["Noto Sans Italic"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 8, 14],
+        "text-transform": "uppercase",
+        "text-anchor": "center"
+      },
+      "paint": {
+        "text-color": "hsl(0, 0%, 30%)",
+        "text-halo-color": "hsl(0, 0%, 100%)",
+        "text-halo-width": 1
+      }
+    },
+    {
       "id": "place_label_city",
       "type": "symbol",
       "source": "openmaptiles",
@@ -234,6 +277,23 @@
         "text-color": "hsl(0, 0%, 35%)",
         "text-halo-color": "hsl(0, 0%, 100%)",
         "text-halo-width": 1
+      }
+    },
+    {
+      "id": "water_name_label",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "water_name",
+      "filter": ["==", ["geometry-type"], "Point"],
+      "layout": {
+        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"], ["get", "name:en"]],
+        "text-font": ["Noto Sans Italic"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 0, 10, 8, 14]
+      },
+      "paint": {
+        "text-color": "#495e91",
+        "text-halo-color": "rgba(255, 255, 255, 0.7)",
+        "text-halo-width": 1.5
       }
     },
     {
