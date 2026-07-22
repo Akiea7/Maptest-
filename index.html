@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK -   (Native Style)</title>
+    <title>تطبيق ALAK - (Native Style Tracking)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
@@ -49,11 +49,11 @@
 
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'alak-style.json?v=3', // هنا السحر: الخريطة تقرأ ستايلك الخاص مباشرة!
+            style: 'alak-style.json?v=3',
             center: [44.3783246, 33.6668412], 
             zoom: 15.5,
-            bearing: 18,
-            pitch: 0,
+            bearing: 45, // خليت اتجاه الخريطة يتطابق ويه اتجاه السيارة
+            pitch: 45,   // السحر هنا: إمالة الخريطة 45 درجة لتفعيل الـ 3D
             antialias: true,
             attributionControl: false 
         });
@@ -63,6 +63,9 @@
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
         map.on('load', () => {
+            // ==========================================
+            // 1. تحميل طبقة الأماكن الخاصة بيك (places.js)
+            // ==========================================
             if (typeof alakPlaces !== 'undefined') {
                 let safeMapFont = ['Noto Sans Regular'];
                 const styleLayers = map.getStyle().layers;
@@ -88,18 +91,8 @@
                         'icon-size': 1.1,
                         'text-field': ['get', 'title'],
                         'text-font': safeMapFont, 
-                        
-                        'text-size': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            14, 11,
-                            17, 13,
-                            20, 16
-                        ],
-                        
+                        'text-size': ['interpolate', ['linear'], ['zoom'], 14, 11, 17, 13, 20, 16],
                         'symbol-sort-key': ['coalesce', ['get', 'priority'], 10],
-                        
                         'text-offset': [0, 1.2],
                         'text-anchor': 'top',
                         'icon-allow-overlap': false, 
@@ -117,6 +110,90 @@
             } else {
                 console.error("ملف places.js ما قرأ!");
             }
+
+            // ==========================================
+            // 2. كود الاستدعاء: رسم مسار الرحلة (Route)
+            // ==========================================
+            const routeGeoJSON = {
+                'type': 'FeatureCollection',
+                'features': [{
+                    'type': 'Feature',
+                    'geometry': {
+                        'type': 'LineString',
+                        'coordinates': [
+                            [44.3783246, 33.6668412], // نقطة البداية
+                            [44.3810000, 33.6700000],
+                            [44.3850000, 33.6740000]  // نقطة النهاية (مثال)
+                        ]
+                    }
+                }]
+            };
+
+            map.addSource('routeSource', {
+                'type': 'geojson',
+                'data': routeGeoJSON
+            });
+
+            // الطبقة السفلية (الظل/الحدود الداكنة للمسار)
+            map.addLayer({
+                'id': 'routeCasing',
+                'type': 'line',
+                'source': 'routeSource',
+                'layout': { 'line-cap': 'round', 'line-join': 'round' },
+                'paint': {
+                    'line-color': '#1e3a5f',
+                    'line-width': 8
+                }
+            });
+
+            // الطبقة العلوية (قلب المسار بلون التطبيق)
+            map.addLayer({
+                'id': 'routeCore',
+                'type': 'line',
+                'source': 'routeSource',
+                'layout': { 'line-cap': 'round', 'line-join': 'round' },
+                'paint': {
+                    'line-color': '#0088FF',
+                    'line-width': 4
+                }
+            });
+
+            // ==========================================
+            // 3. كود الاستدعاء: سيارة الكابتن
+            // ==========================================
+            const captainGeoJSON = {
+                'type': 'FeatureCollection',
+                'features': [{
+                    'type': 'Feature',
+                    'properties': { 'bearing': 45 }, // اتجاه السيارة
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [44.3783246, 33.6668412] // موقع الكابتن الحالي
+                    }
+                }]
+            };
+
+            map.addSource('captainSource', {
+                'type': 'geojson',
+                'data': captainGeoJSON
+            });
+
+            map.addLayer({
+                'id': 'captainIcon',
+                'type': 'symbol',
+                'source': 'captainSource',
+                'layout': {
+                    // ملاحظة: تأكد إن أيقونة السيارة موجودة بملف الـ Sprite، استعملت car_11 كمثال
+                    'icon-image': 'car_11', 
+                    'icon-size': 1.5,
+                    'icon-pitch-alignment': 'map', // يخلي السيارة ملتصقة بالشارع
+                    'icon-rotation-alignment': 'map',
+                    'icon-rotate': ['get', 'bearing'], // تدوير السيارة حسب الاتجاه
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true
+                }
+            });
+
         });
     </script>
 </body>
