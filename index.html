@@ -3,17 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - ستايل الخريطة الاحترافي</title>
+    <title>تطبيق ALAK - النسخة الاحترافية (Native Style)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <!-- قراءة ملف الأماكن الخارجي -->
+    <script src="places.js?v=8"></script>
+
     <style>
         body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
-        
         .bounce-marker {
             transform: translate(-50%, -80%) scale(1.05) !important;
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -24,13 +26,12 @@
 
     <div id="map"></div>
 
-    <!-- حقوق تطبيق ALAK -->
     <div class="absolute bottom-12 left-4 z-30 text-[11px] text-gray-500 font-sans leading-snug pointer-events-none select-none drop-shadow-sm flex flex-col items-start" dir="ltr">
         <div class="font-semibold text-gray-600">© ALAK</div>
         <div>© OpenStreetMap</div>
     </div>
 
-    <!-- دبوس ALAK الاحترافي -->
+    <!-- دبوس ALAK -->
     <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
         <div class="w-[34px] h-[34px] bg-[#1E3A8A] rounded-full border-[3px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.2)] flex items-center justify-center z-10 relative">
             <div class="w-3 h-3 bg-white rounded-full"></div>
@@ -48,9 +49,9 @@
 
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'https://tiles.openfreemap.org/styles/liberty', 
-            center: [44.3783246, 33.6668412], // الطارمية
-            zoom: 17.6,
+            style: 'alak-style.json?v=3', // هنا السحر: الخريطة تقرأ ستايلك الخاص مباشرة!
+            center: [44.3783246, 33.6668412], 
+            zoom: 15.5,
             bearing: 18,
             pitch: 0,
             antialias: true,
@@ -61,69 +62,62 @@
         map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
-        // ==========================================
-        // دالة الستايل المنظمة
-        // ==========================================
-        function applyMapStyling(mapInstance) {
-            const layers = mapInstance.getStyle().layers;
-
-            layers.forEach(layer => {
-                try {
-                    const id = layer.id;
-
-                    // 1. الخلفية (أغمق قليلاً حتى تبرز الشوارع البيضاء)
-                    if (id.includes('background')) {
-                        mapInstance.setPaintProperty(id, 'background-color', '#E2E5E9');
-                    } 
-                    // 2. المياه والحدائق (ألوان بلي الهادئة)
-                    else if (id.includes('water')) {
-                        mapInstance.setPaintProperty(id, 'fill-color', '#C3D8E6');
-                    }
-                    else if (id.includes('park') || id.includes('green') || id.includes('pitch')) {
-                        mapInstance.setPaintProperty(id, 'fill-color', '#CFE1D4');
-                    }
-                    // 3. المباني (لون متناسق يبرز عن الخلفية)
-                    else if (id.includes('building')) {
-                        mapInstance.setPaintProperty(id, 'fill-color', '#D5D9DE');
-                    }
-                    // 4. إخفاء الـ POI (لتبسيط الخريطة وجعلها نظيفة مثل بلي)
-                    else if (id.includes('poi')) {
-                        mapInstance.setLayoutProperty(id, 'visibility', 'none');
-                    }
-                    // 5. هندسة الشوارع
-                    else if (layer.type === 'line' && (id.includes('highway') || id.includes('road') || id.includes('bridge') || id.includes('tunnel'))) {
-                        
-                        const isMinorRoad = id.includes('minor') || id.includes('residential') || id.includes('service') || id.includes('unclassified') || id.includes('path') || id.includes('pedestrian');
-                        const isCasing = id.includes('case') || id.includes('casing') || id.includes('outline') || id.includes('bg') || id.includes('border') || id.includes('shadow');
-
-                        if (isMinorRoad) {
-                            if (isCasing) {
-                                // دمج حدود الشوارع الفرعية مع الخلفية
-                                mapInstance.setPaintProperty(id, 'line-color', '#E2E5E9'); 
-                            } else {
-                                // شوارع فرعية بيضاء ناصعة
-                                mapInstance.setPaintProperty(id, 'line-color', '#FFFFFF'); 
-                            }
-                        } else {
-                            if (isCasing) {
-                                // التحديد الداكن للشوارع الرئيسية (السر هنا لعدم ضياع الخريطة)
-                                mapInstance.setPaintProperty(id, 'line-color', '#A5B1C2'); 
-                            } else {
-                                // قلب الشارع الرئيسي (رصاصي فاتح جداً مقارب للأبيض)
-                                mapInstance.setPaintProperty(id, 'line-color', '#F8F9FA'); 
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.warn(`تجاهل تعديل الطبقة: ${layer.id}`, e);
-                }
-            });
-        }
-
         map.on('load', () => {
-            applyMapStyling(map);
-        });
+            if (typeof alakPlaces !== 'undefined') {
+                let safeMapFont = ['Noto Sans Regular'];
+                const styleLayers = map.getStyle().layers;
+                for (let i = 0; i < styleLayers.length; i++) {
+                    if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
+                        safeMapFont = styleLayers[i].layout['text-font'];
+                        break;
+                    }
+                }
 
+                map.addSource('alak-custom-places', {
+                    'type': 'geojson',
+                    'data': alakPlaces 
+                });
+
+                map.addLayer({
+                    'id': 'alak-places-layer',
+                    'type': 'symbol',
+                    'source': 'alak-custom-places',
+                    'minzoom': 13, 
+                    'layout': {
+                        'icon-image': ['concat', ['get', 'icon'], '_11'],
+                        'icon-size': 1.1,
+                        'text-field': ['get', 'title'],
+                        'text-font': safeMapFont, 
+                        
+                        'text-size': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            14, 11,
+                            17, 13,
+                            20, 16
+                        ],
+                        
+                        'symbol-sort-key': ['coalesce', ['get', 'priority'], 10],
+                        
+                        'text-offset': [0, 1.2],
+                        'text-anchor': 'top',
+                        'icon-allow-overlap': false, 
+                        'text-allow-overlap': false, 
+                        'icon-padding': 2, 
+                        'text-padding': 2,
+                        'icon-optional': true 
+                    },
+                    'paint': {
+                        'text-color': '#4a4a4a', 
+                        'text-halo-color': '#ffffff',
+                        'text-halo-width': 2
+                    }
+                });
+            } else {
+                console.error("ملف places.js ما قرأ!");
+            }
+        });
     </script>
 </body>
 </html>
