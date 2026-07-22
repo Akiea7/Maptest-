@@ -1,199 +1,189 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق ALAK - (Native Style Tracking)</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>تتبع رحلة ألك</title>
+    <!-- استدعاء مكتبة MapLibre للويب -->
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- قراءة ملف الأماكن الخارجي -->
-    <script src="places.js?v=8"></script>
-
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
-        body { font-family: 'Noto Sans Arabic', sans-serif; margin: 0; padding: 0; overflow: hidden; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; z-index: 0; }
-        .bounce-marker {
-            transform: translate(-50%, -80%) scale(1.05) !important;
-            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
+        body { margin: 0; padding: 0; font-family: sans-serif; background-color: #F5F5F7; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        
+        /* تصميم الواجهة العائمة */
+        .top-bar { position: absolute; top: 20px; right: 20px; z-index: 10; }
+        .status-badge { display: flex; align-items: center; background: rgba(255, 255, 255, 0.9); padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #00C853; margin-left: 8px; }
+        .status-text { font-size: 14px; font-weight: bold; color: #1A1A1A; }
+        
+        /* البطاقة السفلية */
+        .bottom-sheet { position: absolute; bottom: 0; width: 100%; background: #FFF; border-radius: 24px 24px 0 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); padding-bottom: 20px; z-index: 10; }
+        .sheet-handle { width: 40px; height: 4px; background: #E0E0E0; border-radius: 2px; margin: 12px auto 16px; }
+        .sheet-content { padding: 0 20px; }
+        .captain-info { display: flex; align-items: center; margin-bottom: 20px; }
+        .avatar { width: 56px; height: 56px; border-radius: 50%; background: #E3F2FD; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; color: #0066FF; margin-left: 16px; }
+        .info-text { flex: 1; }
+        .captain-name { font-size: 18px; font-weight: bold; color: #1A1A1A; margin: 0 0 4px 0; }
+        .vehicle-info { font-size: 14px; color: #666; margin: 0; }
+        .rating-box { background: #FFF8E1; padding: 6px 12px; border-radius: 12px; font-size: 14px; font-weight: bold; color: #F57F17; }
     </style>
 </head>
-<body class="relative h-screen w-full">
+<body>
 
     <div id="map"></div>
 
-    <div class="absolute bottom-12 left-4 z-30 text-[11px] text-gray-500 font-sans leading-snug pointer-events-none select-none drop-shadow-sm flex flex-col items-start" dir="ltr">
-        <div class="font-semibold text-gray-600">© ALAK</div>
-        <div>© OpenStreetMap</div>
+    <!-- الواجهة الفوقية -->
+    <div class="top-bar">
+        <div class="status-badge">
+            <div class="live-dot"></div>
+            <div class="status-text">متابعة مباشرة</div>
+        </div>
     </div>
 
-    <!-- دبوس ALAK -->
-    <div id="center-marker" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-[65%] z-20 pointer-events-none transition-transform duration-300 flex flex-col items-center">
-        <div class="w-[34px] h-[34px] bg-[#1E3A8A] rounded-full border-[3px] border-white shadow-[0_2px_8px_rgba(0,0,0,0.2)] flex items-center justify-center z-10 relative">
-            <div class="w-3 h-3 bg-white rounded-full"></div>
+    <!-- البطاقة السفلية -->
+    <div class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-content">
+            <div class="captain-info">
+                <div class="avatar">أ</div>
+                <div class="info-text">
+                    <p class="captain-name">الكابتن أحمد</p>
+                    <p class="vehicle-info">تويوتا كامري • أبيض • ١٢٣٤٥</p>
+                </div>
+                <div class="rating-box">⭐ 4.9</div>
+            </div>
         </div>
-        <div class="w-[2.5px] h-[22px] bg-[#4a4a4a] -mt-1 z-0 relative"></div>
-        <div class="w-[14px] h-[6px] bg-black rounded-[50%] -mt-1 z-0" style="opacity: 0.18; filter: blur(3px);"></div>
     </div>
 
     <script>
-        maplibregl.setRTLTextPlugin(
-            'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js',
-            null,
-            true 
-        );
+        // إحداثيات المسار التجريبي
+        const routeCoords = [
+            [44.3615, 33.3152],
+            [44.3630, 33.3165],
+            [44.3650, 33.3180],
+            [44.3675, 33.3200],
+            [44.3700, 33.3220]
+        ];
 
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'alak-style.json?v=3',
-            center: [44.3783246, 33.6668412], 
-            zoom: 15.5,
-            bearing: 45, // خليت اتجاه الخريطة يتطابق ويه اتجاه السيارة
-            pitch: 45,   // السحر هنا: إمالة الخريطة 45 درجة لتفعيل الـ 3D
-            antialias: true,
-            attributionControl: false 
+            style: 'https://akiea7.github.io/Maptest-/alak-style.json', // ستايل خريطتك
+            center: routeCoords[0],
+            zoom: 17,
+            pitch: 45,
+            bearing: 0
         });
 
-        const centerMarker = document.getElementById('center-marker');
-        map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
-        map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
-
         map.on('load', () => {
-            // ==========================================
-            // 1. تحميل طبقة الأماكن الخاصة بيك (places.js)
-            // ==========================================
-            if (typeof alakPlaces !== 'undefined') {
-                let safeMapFont = ['Noto Sans Regular'];
-                const styleLayers = map.getStyle().layers;
-                for (let i = 0; i < styleLayers.length; i++) {
-                    if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
-                        safeMapFont = styleLayers[i].layout['text-font'];
-                        break;
-                    }
+            // 1. تحميل صورة السيارة
+            // تأكد إنك رافع صورة اسمها car-icon.png بنفس المكان بالـ GitHub
+            map.loadImage('car-icon.png', (error, image) => {
+                if (error) {
+                    console.warn("لم يتم العثور على صورة السيارة. جاري استخدام دائرة زرقاء مؤقتاً.");
+                } else {
+                    map.addImage('car-top-view', image);
                 }
 
-                map.addSource('alak-custom-places', {
+                // 2. رسم المسار (الظاهر والقلب)
+                map.addSource('route', {
                     'type': 'geojson',
-                    'data': alakPlaces 
+                    'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': routeCoords } }
                 });
 
                 map.addLayer({
-                    'id': 'alak-places-layer',
-                    'type': 'symbol',
-                    'source': 'alak-custom-places',
-                    'minzoom': 13, 
-                    'layout': {
-                        'icon-image': ['concat', ['get', 'icon'], '_11'],
-                        'icon-size': 1.1,
-                        'text-field': ['get', 'title'],
-                        'text-font': safeMapFont, 
-                        'text-size': ['interpolate', ['linear'], ['zoom'], 14, 11, 17, 13, 20, 16],
-                        'symbol-sort-key': ['coalesce', ['get', 'priority'], 10],
-                        'text-offset': [0, 1.2],
-                        'text-anchor': 'top',
-                        'icon-allow-overlap': false, 
-                        'text-allow-overlap': false, 
-                        'icon-padding': 2, 
-                        'text-padding': 2,
-                        'icon-optional': true 
-                    },
-                    'paint': {
-                        'text-color': '#4a4a4a', 
-                        'text-halo-color': '#ffffff',
-                        'text-halo-width': 2
+                    'id': 'route-casing',
+                    'type': 'line',
+                    'source': 'route',
+                    'layout': { 'line-cap': 'round', 'line-join': 'round' },
+                    'paint': { 'line-color': '#FFFFFF', 'line-width': 10, 'line-opacity': 0.9 }
+                });
+
+                map.addLayer({
+                    'id': 'route-core',
+                    'type': 'line',
+                    'source': 'route',
+                    'layout': { 'line-cap': 'round', 'line-join': 'round' },
+                    'paint': { 'line-color': '#0066FF', 'line-width': 5 }
+                });
+
+                // 3. مصدر بيانات الكابتن (للحركة)
+                map.addSource('captain', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'Feature',
+                        'properties': { 'bearing': 45 },
+                        'geometry': { 'type': 'Point', 'coordinates': routeCoords[0] }
                     }
                 });
-            } else {
-                console.error("ملف places.js ما قرأ!");
-            }
 
-            // ==========================================
-            // 2. كود الاستدعاء: رسم مسار الرحلة (Route)
-            // ==========================================
-            const routeGeoJSON = {
-                'type': 'FeatureCollection',
-                'features': [{
-                    'type': 'Feature',
-                    'geometry': {
-                        'type': 'LineString',
-                        'coordinates': [
-                            [44.3783246, 33.6668412], // نقطة البداية
-                            [44.3810000, 33.6700000],
-                            [44.3850000, 33.6740000]  // نقطة النهاية (مثال)
-                        ]
+                // 4. رسم ظل الكابتن ونبضه وصورته
+                map.addLayer({
+                    'id': 'captain-pulse',
+                    'type': 'circle',
+                    'source': 'captain',
+                    'paint': { 'circle-radius': 18, 'circle-color': '#0066FF', 'circle-opacity': 0.2, 'circle-pitch-alignment': 'map' }
+                });
+
+                map.addLayer({
+                    'id': 'captain-shadow',
+                    'type': 'circle',
+                    'source': 'captain',
+                    'paint': { 'circle-radius': 12, 'circle-color': '#000000', 'circle-opacity': 0.3, 'circle-translate': [0, 4] }
+                });
+
+                if (!error) {
+                    map.addLayer({
+                        'id': 'captain-icon',
+                        'type': 'symbol',
+                        'source': 'captain',
+                        'layout': {
+                            'icon-image': 'car-top-view',
+                            'icon-size': 0.18,
+                            'icon-rotate': ['get', 'bearing'],
+                            'icon-rotation-alignment': 'map',
+                            'icon-pitch-alignment': 'map',
+                            'icon-allow-overlap': true
+                        }
+                    });
+                } else {
+                     // طبقة احتياطية في حال نسيان الصورة
+                     map.addLayer({
+                        'id': 'captain-icon-fallback',
+                        'type': 'circle',
+                        'source': 'captain',
+                        'paint': { 'circle-radius': 6, 'circle-color': '#0066FF', 'circle-stroke-width': 2, 'circle-stroke-color': '#FFF' }
+                    });
+                }
+
+                // 5. محاكاة الحركة
+                let currentIndex = 0;
+                setInterval(() => {
+                    if (currentIndex < routeCoords.length - 1) {
+                        const current = routeCoords[currentIndex];
+                        const next = routeCoords[currentIndex + 1];
+                        
+                        const dx = next[0] - current[0];
+                        const dy = next[1] - current[1];
+                        const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+                        const bearing = (angle + 90 + 360) % 360;
+
+                        // تحديث الإحداثيات والزاوية
+                        map.getSource('captain').setData({
+                            'type': 'Feature',
+                            'properties': { 'bearing': bearing },
+                            'geometry': { 'type': 'Point', 'coordinates': next }
+                        });
+
+                        // تحريك الكاميرا ويه السيارة
+                        map.easeTo({ center: next, bearing: bearing, duration: 1500, easing: (t) => t });
+
+                        currentIndex++;
+                    } else {
+                        currentIndex = 0; // إعادة الرحلة
                     }
-                }]
-            };
-
-            map.addSource('routeSource', {
-                'type': 'geojson',
-                'data': routeGeoJSON
+                }, 2000);
             });
-
-            // الطبقة السفلية (الظل/الحدود الداكنة للمسار)
-            map.addLayer({
-                'id': 'routeCasing',
-                'type': 'line',
-                'source': 'routeSource',
-                'layout': { 'line-cap': 'round', 'line-join': 'round' },
-                'paint': {
-                    'line-color': '#1e3a5f',
-                    'line-width': 8
-                }
-            });
-
-            // الطبقة العلوية (قلب المسار بلون التطبيق)
-            map.addLayer({
-                'id': 'routeCore',
-                'type': 'line',
-                'source': 'routeSource',
-                'layout': { 'line-cap': 'round', 'line-join': 'round' },
-                'paint': {
-                    'line-color': '#0088FF',
-                    'line-width': 4
-                }
-            });
-
-            // ==========================================
-            // 3. كود الاستدعاء: سيارة الكابتن
-            // ==========================================
-            const captainGeoJSON = {
-                'type': 'FeatureCollection',
-                'features': [{
-                    'type': 'Feature',
-                    'properties': { 'bearing': 45 }, // اتجاه السيارة
-                    'geometry': {
-                        'type': 'Point',
-                        'coordinates': [44.3783246, 33.6668412] // موقع الكابتن الحالي
-                    }
-                }]
-            };
-
-            map.addSource('captainSource', {
-                'type': 'geojson',
-                'data': captainGeoJSON
-            });
-
-            map.addLayer({
-                'id': 'captainIcon',
-                'type': 'symbol',
-                'source': 'captainSource',
-                'layout': {
-                    // ملاحظة: تأكد إن أيقونة السيارة موجودة بملف الـ Sprite، استعملت car_11 كمثال
-                    'icon-image': 'car_11', 
-                    'icon-size': 1.5,
-                    'icon-pitch-alignment': 'map', // يخلي السيارة ملتصقة بالشارع
-                    'icon-rotation-alignment': 'map',
-                    'icon-rotate': ['get', 'bearing'], // تدوير السيارة حسب الاتجاه
-                    'icon-allow-overlap': true,
-                    'icon-ignore-placement': true
-                }
-            });
-
         });
     </script>
 </body>
