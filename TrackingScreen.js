@@ -1,32 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import MapboxGL from '@maplibre/maplibre-react-native'; // أو حسب المكتبة المستخدمة في بيئتك
-
-// إعداد ستايل الخريطة اللي سويناه (تأكد من مسار الملف أو الرابط)
-const ALAK_MAP_STYLE = 'https://akiea7.github.io/Maptest-/alak-style.json'; 
-
-export default function AlekTrackingScreen() {
-  // 1. إحداثيات افتراضية للكابتن والمسار (كمثال لتجربة الإبداع)
-  const [captainLocation, setCaptainLocation] = useState([44.3615, 33.3152]); // بغداد كمثال
-  const [captainBearing, setCaptainBearing] = useState(45); // اتجاه مقدمة السيارة
-
-  // GeoJSON يمثل مسار الرحلة من نقطة الانطلاق للوصول
-  const routeGeoJSON = {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: [
-            [44.3615, 33.3152],
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import MapboxGL from '@maplibre/maplibre-react-native'; // أو '@rnmapbox/maps' حسب اللي منصبه عندك
 
 // 🔴 1. ضع رابط خريطتك (GitHub) هنا بدل هذا الرابط
-const ALAK_MAP_STYLE = 'https://akiea7.github.io/alak-style.json'; 
+const ALAK_MAP_STYLE = 'https://akiea7.github.io/Maptest-/alak-style.json'; 
 const CAR_ICON_ID = 'car-top-view'; 
 
 // مسار تجريبي للسيارة
@@ -122,7 +99,7 @@ export default function AlekTrackingScreen() {
       >
         {/* 🔴 2. السطر المسؤول عن قراءة صورة السيارة من ملفاتك */}
         {/* تأكد إنك ضايف صورة اسمها car-icon.png داخل مجلد assets */}
-        <MapboxGL.Images images={{ [CAR_ICON_ID]: require('./assets/car-icon.png') }} />
+        <MapboxGL.Images images={{ [CAR_ICON_ID]: require('./car-icon.png') }} />
 
         <MapboxGL.Camera
           ref={cameraRef}
