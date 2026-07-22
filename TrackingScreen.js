@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import MapboxGL from '@maplibre/maplibre-react-native'; // أو حسب المكتبة المستخدمة في بيئتك
 
 // إعداد ستايل الخريطة اللي سويناه (تأكد من مسار الملف أو الرابط)
-const ALAK_MAP_STYLE = 'https://your-domain.com/alak-style.json'; 
+const ALAK_MAP_STYLE = 'https://akiea7.github.io/Maptest-/alak-style.json'; 
 
 export default function AlekTrackingScreen() {
   // 1. إحداثيات افتراضية للكابتن والمسار (كمثال لتجربة الإبداع)
