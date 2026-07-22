@@ -119,7 +119,7 @@
       "filter": ["all", ["!=", ["get", "brunnel"], "tunnel"], ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary", "tertiary"], true, false]],
       "layout": { "line-cap": "round", "line-join": "round" },
       "paint": {
-        "line-color": "#6b849e",
+        "line-color": "#9ab0c4",
         "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 1, 14, 6, 20, 26]
       }
     },
@@ -131,7 +131,7 @@
       "filter": ["all", ["!=", ["get", "brunnel"], "tunnel"], ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary", "tertiary"], true, false]],
       "layout": { "line-cap": "round", "line-join": "round" },
       "paint": {
-        "line-color": "#a5bbd1",
+        "line-color": "#d4e4f2",
         "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0.5, 14, 4, 20, 20]
       }
     },
@@ -143,7 +143,7 @@
       "filter": ["all", ["==", ["get", "brunnel"], "bridge"], ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary", "tertiary"], true, false]],
       "layout": { "line-cap": "round", "line-join": "round" },
       "paint": {
-        "line-color": "#6b849e",
+        "line-color": "#9ab0c4",
         "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 1, 14, 6, 20, 26]
       }
     },
@@ -155,7 +155,7 @@
       "filter": ["all", ["==", ["get", "brunnel"], "bridge"], ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary", "tertiary"], true, false]],
       "layout": { "line-cap": "round", "line-join": "round" },
       "paint": {
-        "line-color": "#a5bbd1",
+        "line-color": "#d4e4f2",
         "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0.5, 14, 4, 20, 20]
       }
     },
