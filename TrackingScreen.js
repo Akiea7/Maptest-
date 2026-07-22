@@ -1,251 +1,121 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import MapboxGL from '@maplibre/maplibre-react-native'; // أو '@rnmapbox/maps' حسب اللي منصبه عندك
-
-// 🔴 1. ضع رابط خريطتك (GitHub) هنا بدل هذا الرابط
-const ALAK_MAP_STYLE = 'https://akiea7.github.io/Maptest-/alak-style.json'; 
-const CAR_ICON_ID = 'car-top-view'; 
-
-// مسار تجريبي للسيارة
+// 1. الإحداثيات والمسار التجريبي
 const ROUTE_COORDINATES = [
-  [44.3615, 33.3152],
-  [44.3630, 33.3165],
-  [44.3650, 33.3180],
-  [44.3675, 33.3200],
-  [44.3700, 33.3220],
+    [44.3615, 33.3152],
+    [44.3630, 33.3165],
+    [44.3650, 33.3180],
+    [44.3675, 33.3200],
+    [44.3700, 33.3220]
 ];
 
-export default function AlekTrackingScreen() {
-  const cameraRef = useRef(null);
-  const [cameraMode, setCameraMode] = useState('follow'); // 'follow' أو 'free'
-  
-  const [captainLocation, setCaptainLocation] = useState(ROUTE_COORDINATES[0]);
-  const [captainBearing, setCaptainBearing] = useState(0);
-  const [routeProgress, setRouteProgress] = useState(0); 
+// 2. تهيئة الخريطة وربطها بالستايل مالتك
+const map = new maplibregl.Map({
+    container: 'map', // يربط الخريطة بالـ div اللي بالـ HTML
+    style: 'https://akiea7.github.io/Maptest-/alak-style.json',
+    center: ROUTE_COORDINATES[0],
+    zoom: 17,
+    pitch: 45,
+    bearing: 0
+});
 
-  // المحاكاة (اللعبة الوهمية لتحريك السيارة للتجربة)
-  useEffect(() => {
-    let currentIndex = 0;
-    const interval = setInterval(() => {
-      if (currentIndex < ROUTE_COORDINATES.length - 1) {
-        const current = ROUTE_COORDINATES[currentIndex];
-        const next = ROUTE_COORDINATES[currentIndex + 1];
-        
-        const dx = next[0] - current[0];
-        const dy = next[1] - current[1];
-        const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-        const normalizedBearing = (angle + 90 + 360) % 360; 
+// 3. لما تحمل الخريطة، نبدأ نرسم الطبقات
+map.on('load', () => {
+    
+    // تحميل صورة السيارة (تأكد إنها مرفوعة ويا الملفات)
+    map.loadImage('car-icon.png', (error, image) => {
+        if (!error) {
+            map.addImage('car-top-view', image);
+        }
 
-        setCaptainLocation(next);
-        setCaptainBearing(normalizedBearing);
-        setRouteProgress(((currentIndex + 1) / (ROUTE_COORDINATES.length - 1)) * 100);
-        currentIndex++;
-      } else {
-        currentIndex = 0; 
-      }
-    }, 2000); 
+        // --- رسم المسار المزدوج (Casing & Core) ---
+        map.addSource('route', {
+            'type': 'geojson',
+            'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDINATES } }
+        });
 
-    return () => clearInterval(interval);
-  }, []);
+        map.addLayer({
+            'id': 'route-casing',
+            'type': 'line',
+            'source': 'route',
+            'layout': { 'line-cap': 'round', 'line-join': 'round' },
+            'paint': { 'line-color': '#FFFFFF', 'line-width': 10, 'line-opacity': 0.9 }
+        });
 
-  // توجيه الكاميرا الذكية
-  useEffect(() => {
-    if (cameraMode === 'follow' && cameraRef.current) {
-      cameraRef.current.setCamera({
-        centerCoordinate: captainLocation,
-        heading: captainBearing,
-        pitch: 45,
-        zoomLevel: 17,
-        animationMode: 'easeTo',
-        animationDuration: 1500,
-      });
-    }
-  }, [captainLocation, captainBearing, cameraMode]);
+        map.addLayer({
+            'id': 'route-core',
+            'type': 'line',
+            'source': 'route',
+            'layout': { 'line-cap': 'round', 'line-join': 'round' },
+            'paint': { 'line-color': '#0066FF', 'line-width': 5 }
+        });
 
-  const routeGeoJSON = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: {},
-      geometry: { type: 'LineString', coordinates: ROUTE_COORDINATES },
-    }],
-  }), []);
+        // --- رسم سيارة الكابتن (النقطة الأولية) ---
+        map.addSource('captain', {
+            'type': 'geojson',
+            'data': {
+                'type': 'Feature',
+                'properties': { 'bearing': 45 },
+                'geometry': { 'type': 'Point', 'coordinates': ROUTE_COORDINATES[0] }
+            }
+        });
 
-  const captainGeoJSON = useMemo(() => ({
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: { bearing: captainBearing },
-      geometry: { type: 'Point', coordinates: captainLocation },
-    }],
-  }), [captainLocation, captainBearing]);
+        // النبض والظل والأيقونة
+        map.addLayer({
+            'id': 'captain-pulse',
+            'type': 'circle',
+            'source': 'captain',
+            'paint': { 'circle-radius': 18, 'circle-color': '#0066FF', 'circle-opacity': 0.2, 'circle-pitch-alignment': 'map' }
+        });
 
-  const handleMapPress = useCallback(() => {
-    setCameraMode('free');
-  }, []);
+        map.addLayer({
+            'id': 'captain-shadow',
+            'type': 'circle',
+            'source': 'captain',
+            'paint': { 'circle-radius': 12, 'circle-color': '#000000', 'circle-opacity': 0.3, 'circle-translate': [0, 4] }
+        });
 
-  const handleRecenter = useCallback(() => {
-    setCameraMode('follow');
-  }, []);
+        if (!error) {
+            map.addLayer({
+                'id': 'captain-icon',
+                'type': 'symbol',
+                'source': 'captain',
+                'layout': {
+                    'icon-image': 'car-top-view',
+                    'icon-size': 0.18,
+                    'icon-rotate': ['get', 'bearing'],
+                    'icon-rotation-alignment': 'map',
+                    'icon-pitch-alignment': 'map',
+                    'icon-allow-overlap': true
+                }
+            });
+        }
 
-  return (
-    <View style={styles.container}>
-      <MapboxGL.MapView
-        style={styles.map}
-        styleURL={ALAK_MAP_STYLE}
-        logoEnabled={false}
-        compassEnabled={false}
-        onPress={handleMapPress}
-      >
-        {/* 🔴 2. السطر المسؤول عن قراءة صورة السيارة من ملفاتك */}
-        {/* تأكد إنك ضايف صورة اسمها car-icon.png داخل مجلد assets */}
-        <MapboxGL.Images images={{ [CAR_ICON_ID]: require('./car-icon.png') }} />
+        // --- 4. المحاكاة (تحريك السيارة والكاميرا) ---
+        let currentIndex = 0;
+        setInterval(() => {
+            if (currentIndex < ROUTE_COORDINATES.length - 1) {
+                const current = ROUTE_COORDINATES[currentIndex];
+                const next = ROUTE_COORDINATES[currentIndex + 1];
+                
+                // حساب زاوية دوران السيارة
+                const dx = next[0] - current[0];
+                const dy = next[1] - current[1];
+                const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+                const bearing = (angle + 90 + 360) % 360;
 
-        <MapboxGL.Camera
-          ref={cameraRef}
-          zoomLevel={17}
-          pitch={45}
-          heading={captainBearing}
-          centerCoordinate={captainLocation}
-          animationMode="easeTo"
-          animationDuration={1500}
-        />
+                // تحديث موقع الكابتن بالخريطة
+                map.getSource('captain').setData({
+                    'type': 'Feature',
+                    'properties': { 'bearing': bearing },
+                    'geometry': { 'type': 'Point', 'coordinates': next }
+                });
 
-        {/* رسم المسار المزدوج */}
-        <MapboxGL.ShapeSource id="routeSource" shape={routeGeoJSON}>
-          <MapboxGL.LineLayer
-            id="routeCasing"
-            style={{
-              lineColor: '#FFFFFF',
-              lineWidth: 10,
-              lineCap: 'round',
-              lineJoin: 'round',
-              lineOpacity: 0.9,
-            }}
-          />
-          <MapboxGL.LineLayer
-            id="routeCore"
-            style={{
-              lineColor: '#0066FF', // أزرق ألك الفاقع
-              lineWidth: 5,
-              lineCap: 'round',
-              lineJoin: 'round',
-            }}
-          />
-        </MapboxGL.ShapeSource>
+                // توجيه الكاميرا الذكية لملاحقة السيارة
+                map.easeTo({ center: next, bearing: bearing, duration: 1500, easing: (t) => t });
 
-        {/* سيارة الكابتن والظلال */}
-        <MapboxGL.ShapeSource id="captainSource" shape={captainGeoJSON}>
-          <MapboxGL.CircleLayer
-            id="captainPulse"
-            style={{
-              circleRadius: 18,
-              circleColor: '#0066FF',
-              circleOpacity: 0.2,
-              circlePitchAlignment: 'map',
-            }}
-          />
-          <MapboxGL.CircleLayer
-            id="captainShadow"
-            style={{
-              circleRadius: 12,
-              circleColor: '#000000',
-              circleOpacity: 0.3,
-              circlePitchAlignment: 'viewport',
-              circleTranslate: [0, 4], 
-            }}
-          />
-          <MapboxGL.SymbolLayer
-            id="captainIcon"
-            style={{
-              iconImage: CAR_ICON_ID, 
-              iconSize: 0.18,
-              iconAllowOverlap: true,
-              iconIgnorePlacement: true,
-              iconPitchAlignment: 'map',
-              iconRotationAlignment: 'map',
-              iconRotate: ['get', 'bearing'],
-            }}
-          />
-        </MapboxGL.ShapeSource>
-      </MapboxGL.MapView>
-
-      {/* الواجهة العائمة */}
-      <View style={styles.topBar}>
-        <View style={styles.statusBadge}>
-          <View style={styles.liveDot} />
-          <Text style={styles.statusText}>متابعة مباشرة</Text>
-        </View>
-      </View>
-
-      {cameraMode === 'free' && (
-        <TouchableOpacity style={styles.recenterButton} onPress={handleRecenter}>
-          <Text style={styles.recenterIcon}>📍</Text>
-        </TouchableOpacity>
-      )}
-
-      <View style={styles.bottomSheet}>
-        <View style={styles.sheetHandle} />
-        <View style={styles.sheetContent}>
-          <View style={styles.captainInfo}>
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>أ</Text>
-            </View>
-            <View style={styles.infoText}>
-              <Text style={styles.captainName}>الكابتن أحمد</Text>
-              <Text style={styles.vehicleInfo}>تويوتا كامري • أبيض • ١٢٣٤٥</Text>
-            </View>
-            <View style={styles.ratingBox}>
-              <Text style={styles.ratingText}>⭐ 4.9</Text>
-            </View>
-          </View>
-          
-          <View style={styles.tripDetails}>
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>الوقت المتبقي</Text>
-              <Text style={styles.detailValue}>٣ دقائق</Text>
-            </View>
-            <View style={styles.detailDivider} />
-            <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>المسافة</Text>
-              <Text style={styles.detailValue}>١.٢ كم</Text>
-            </View>
-          </View>
-
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBarFill, { width: `${routeProgress}%` }]} />
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F7' },
-  map: { flex: 1 },
-  topBar: { position: 'absolute', top: 50, left: 20, right: 20, zIndex: 10 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.9)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, alignSelf: 'flex-start', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#00C853', marginRight: 8 },
-  statusText: { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
-  recenterButton: { position: 'absolute', bottom: 280, right: 20, width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5, zIndex: 10 },
-  recenterIcon: { fontSize: 24 },
-  bottomSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 10, paddingBottom: 40 },
-  sheetHandle: { width: 40, height: 4, backgroundColor: '#E0E0E0', borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 16 },
-  sheetContent: { paddingHorizontal: 20 },
-  captainInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  avatarPlaceholder: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#E3F2FD', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  avatarText: { fontSize: 24, fontWeight: 'bold', color: '#0066FF' },
-  infoText: { flex: 1 },
-  captainName: { fontSize: 18, fontWeight: '700', color: '#1A1A1A', marginBottom: 4 },
-  vehicleInfo: { fontSize: 14, color: '#666666' },
-  ratingBox: { backgroundColor: '#FFF8E1', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  ratingText: { fontSize: 14, fontWeight: '700', color: '#F57F17' },
-  tripDetails: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#F8F9FA', borderRadius: 16, paddingVertical: 16, marginBottom: 20 },
-  detailItem: { alignItems: 'center' },
-  detailLabel: { fontSize: 12, color: '#666666', marginBottom: 4 },
-  detailValue: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  detailDivider: { width: 1, backgroundColor: '#E0E0E0' },
-  progressBarContainer: { height: 6, backgroundColor: '#E3F2FD', borderRadius: 3, overflow: 'hidden', marginBottom: 8 },
-  progressBarFill: { height: '100%', backgroundColor: '#0066FF', borderRadius: 3 },
+                currentIndex++;
+            } else {
+                currentIndex = 0; 
+            }
+        }, 2000);
+    });
 });
