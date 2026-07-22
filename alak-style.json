@@ -103,25 +103,10 @@
       "source": "openmaptiles",
       "source-layer": "building",
       "minzoom": 13,
-      "maxzoom": 14,
       "paint": {
         "fill-color": "#d5d9de",
         "fill-outline-color": "#b8bec5",
         "fill-opacity": 0.8
-      }
-    },
-    {
-      "id": "building_3d_extrusion",
-      "type": "fill-extrusion",
-      "source": "openmaptiles",
-      "source-layer": "building",
-      "minzoom": 14,
-      "filter": ["all", ["has", "height"], [">", ["get", "height"], 0]],
-      "paint": {
-        "fill-extrusion-color": ["interpolate", ["linear"], ["zoom"], 14, "#d5d9de", 16, "#d0d4d9"],
-        "fill-extrusion-height": ["get", "height"],
-        "fill-extrusion-base": ["coalesce", ["get", "min_height"], 0],
-        "fill-extrusion-opacity": 0.8
       }
     },
     {
@@ -203,7 +188,7 @@
       "source-layer": "place",
       "filter": ["==", ["get", "class"], "city"],
       "layout": {
-        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name:en"], ["get", "name"]],
+        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"], ["get", "name:en"]],
         "text-font": ["Noto Sans Bold"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 7, 12, 12, 16],
         "text-anchor": "center"
@@ -221,7 +206,7 @@
       "source-layer": "place",
       "filter": ["==", ["get", "class"], "town"],
       "layout": {
-        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name:en"], ["get", "name"]],
+        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"], ["get", "name:en"]],
         "text-font": ["Noto Sans Regular"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 8, 10, 15, 14],
         "text-anchor": "center"
@@ -237,12 +222,12 @@
       "type": "symbol",
       "source": "openmaptiles",
       "source-layer": "place",
-      "minzoom": 12,
+      "minzoom": 11,
       "filter": ["match", ["get", "class"], ["suburb", "neighbourhood", "village"], true, false],
       "layout": {
-        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name:en"], ["get", "name"]],
+        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"], ["get", "name:en"]],
         "text-font": ["Noto Sans Italic"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 16, 14],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 11, 10, 16, 14],
         "text-anchor": "center"
       },
       "paint": {
@@ -257,13 +242,13 @@
       "source": "openmaptiles",
       "source-layer": "transportation_name",
       "filter": ["match", ["get", "class"], ["motorway", "trunk", "primary", "secondary", "tertiary"], true, false],
-      "minzoom": 10,
+      "minzoom": 11,
       "layout": {
         "symbol-placement": "line",
-        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name:en"], ["get", "name"]],
+        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"], ["get", "name:en"]],
         "text-font": ["Noto Sans Bold"],
         "text-rotation-alignment": "map",
-        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 10, 16, 13]
+        "text-size": ["interpolate", ["linear"], ["zoom"], 11, 10, 16, 13]
       },
       "paint": {
         "text-color": "hsl(0, 0%, 25%)",
@@ -280,7 +265,7 @@
       "minzoom": 14,
       "layout": {
         "symbol-placement": "line",
-        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name:en"], ["get", "name"]],
+        "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"], ["get", "name:en"]],
         "text-font": ["Noto Sans Regular"],
         "text-rotation-alignment": "map",
         "text-size": ["interpolate", ["linear"], ["zoom"], 14, 9, 16, 11]
