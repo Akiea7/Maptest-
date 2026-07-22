@@ -106,7 +106,9 @@
         ["==", ["get", "class"], "grass"],
         ["==", ["get", "class"], "wood"],
         ["==", ["get", "class"], "forest"],
-        ["==", ["get", "class"], "scrub"]
+        ["==", ["get", "class"], "scrub"],
+        ["==", ["get", "class"], "farmland"],
+        ["==", ["get", "class"], "meadow"]
       ],
       "paint": {
         "fill-color": "#b5d6b2",
@@ -125,7 +127,10 @@
         ["==", ["get", "class"], "recreation_ground"],
         ["==", ["get", "class"], "cemetery"],
         ["==", ["get", "class"], "park"],
-        ["==", ["get", "class"], "village_green"]
+        ["==", ["get", "class"], "village_green"],
+        ["==", ["get", "class"], "farmland"],
+        ["==", ["get", "class"], "meadow"],
+        ["==", ["get", "class"], "orchard"]
       ],
       "paint": {
         "fill-color": "#b5d6b2",
