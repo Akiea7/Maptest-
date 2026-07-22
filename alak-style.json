@@ -100,34 +100,12 @@
       }
     },
     {
-      "id": "landuse_hospital",
-      "type": "fill",
-      "source": "openmaptiles",
-      "source-layer": "landuse",
-      "filter": ["==", ["get", "class"], "hospital"],
-      "paint": {
-        "fill-color": "#fde4e4"
-      }
-    },
-    {
-      "id": "landuse_school",
-      "type": "fill",
-      "source": "openmaptiles",
-      "source-layer": "landuse",
-      "filter": ["==", ["get", "class"], "school"],
-      "paint": {
-        "fill-color": "#f0f4db"
-      }
-    },
-    {
       "id": "waterway_river",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "waterway",
       "filter": ["all", ["==", ["get", "class"], "river"], ["!=", ["get", "brunnel"], "tunnel"]],
-      "layout": {
-        "line-cap": "round"
-      },
+      "layout": { "line-cap": "round" },
       "paint": {
         "line-color": "#a1c2e6",
         "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 11, 0.5, 20, 6]
@@ -144,11 +122,11 @@
       }
     },
     {
-      "id": "tunnel_casing",
+      "id": "tunnel_minor_casing",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
-      "filter": ["==", ["get", "brunnel"], "tunnel"],
+      "filter": ["all", ["==", ["get", "brunnel"], "tunnel"], ["match", ["get", "class"], ["primary", "trunk", "motorway"], false, true]],
       "layout": { "line-join": "round" },
       "paint": {
         "line-color": "#c8d0d8",
@@ -157,11 +135,11 @@
       }
     },
     {
-      "id": "tunnel_fill",
+      "id": "tunnel_minor_fill",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
-      "filter": ["==", ["get", "brunnel"], "tunnel"],
+      "filter": ["all", ["==", ["get", "brunnel"], "tunnel"], ["match", ["get", "class"], ["primary", "trunk", "motorway"], false, true]],
       "layout": { "line-join": "round" },
       "paint": {
         "line-color": "#e8ebee",
@@ -181,6 +159,18 @@
       }
     },
     {
+      "id": "road_minor_fill",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["match", ["get", "brunnel"], ["bridge", "tunnel"], false, true], ["match", ["get", "class"], ["minor", "service", "track"], true, false]],
+      "layout": { "line-cap": "round", "line-join": "round" },
+      "paint": {
+        "line-color": "#ffffff",
+        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 13.5, 0, 14, 2.5, 20, 18]
+      }
+    },
+    {
       "id": "road_secondary_tertiary_casing",
       "type": "line",
       "source": "openmaptiles",
@@ -193,31 +183,7 @@
       }
     },
     {
-      "id": "road_trunk_primary_casing",
-      "type": "line",
-      "source": "openmaptiles",
-      "source-layer": "transportation",
-      "filter": ["all", ["match", ["get", "brunnel"], ["bridge", "tunnel"], false, true], ["match", ["get", "class"], ["primary", "trunk", "motorway"], true, false]],
-      "layout": { "line-join": "round", "line-cap": "round" },
-      "paint": {
-        "line-color": "#3b4d61",
-        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0.6, 6, 1, 7, 2.5, 20, 28]
-      }
-    },
-    {
-      "id": "road_minor",
-      "type": "line",
-      "source": "openmaptiles",
-      "source-layer": "transportation",
-      "filter": ["all", ["match", ["get", "brunnel"], ["bridge", "tunnel"], false, true], ["match", ["get", "class"], ["minor", "service", "track"], true, false]],
-      "layout": { "line-cap": "round", "line-join": "round" },
-      "paint": {
-        "line-color": "#ffffff",
-        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 13.5, 0, 14, 2.5, 20, 18]
-      }
-    },
-    {
-      "id": "road_secondary_tertiary",
+      "id": "road_secondary_tertiary_fill",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
@@ -229,7 +195,19 @@
       }
     },
     {
-      "id": "road_trunk_primary",
+      "id": "road_primary_motorway_casing",
+      "type": "line",
+      "source": "openmaptiles",
+      "source-layer": "transportation",
+      "filter": ["all", ["match", ["get", "brunnel"], ["bridge", "tunnel"], false, true], ["match", ["get", "class"], ["primary", "trunk", "motorway"], true, false]],
+      "layout": { "line-join": "round", "line-cap": "round" },
+      "paint": {
+        "line-color": "#3b4d61",
+        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0.6, 6, 1.5, 7, 3, 20, 26]
+      }
+    },
+    {
+      "id": "road_primary_motorway_fill",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
@@ -237,31 +215,31 @@
       "layout": { "line-join": "round", "line-cap": "round" },
       "paint": {
         "line-color": "#6c8299",
-        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0, 7, 1.2, 20, 22]
+        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0, 7, 1.5, 20, 20]
       }
     },
     {
-      "id": "bridge_casing",
+      "id": "bridge_primary_motorway_casing",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
-      "filter": ["==", ["get", "brunnel"], "bridge"],
+      "filter": ["all", ["==", ["get", "brunnel"], "bridge"], ["match", ["get", "class"], ["primary", "trunk", "motorway"], true, false]],
       "layout": { "line-join": "round" },
       "paint": {
         "line-color": "#3b4d61",
-        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0.6, 6, 1, 7, 2.5, 20, 28]
+        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0.6, 6, 1.5, 7, 3, 20, 26]
       }
     },
     {
-      "id": "bridge_fill",
+      "id": "bridge_primary_motorway_fill",
       "type": "line",
       "source": "openmaptiles",
       "source-layer": "transportation",
-      "filter": ["==", ["get", "brunnel"], "bridge"],
+      "filter": ["all", ["==", ["get", "brunnel"], "bridge"], ["match", ["get", "class"], ["primary", "trunk", "motorway"], true, false]],
       "layout": { "line-join": "round" },
       "paint": {
         "line-color": "#6c8299",
-        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0, 7, 1.2, 20, 22]
+        "line-width": ["interpolate", ["exponential", 1.2], ["zoom"], 5, 0, 7, 1.5, 20, 20]
       }
     },
     {
