@@ -144,67 +144,24 @@
                 });
             }
 
-            // ==========================================
-            // 2. تحميل صورة السيارة وإضافة الطبقات الجديدة
-            // ==========================================
-            
-            // حاول تقرأ صورة السيارة، وإذا ما لقاها يستخدم car_11 كاحتياط
-            map.loadImage('car-icon.png', (error, image) => {
-                let finalIconId = 'car_11'; // الافتراضي مالتك
-                if (!error) {
-                    map.addImage('car-top-view', image);
-                    finalIconId = 'car-top-view';
-                }
+                            // ... (الطبقات مال المسار والنبض والظل تبقيها مثل ما هي) ...
 
-                // إضافة مصدر المسار
-                map.addSource('routeSource', {
-                    'type': 'geojson',
-                    'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS } }
-                });
-
-                // رسم المسار (الطبقة السفلية والعلوية)
-                map.addLayer({
-                    'id': 'routeCasing',
-                    'type': 'line',
-                    'source': 'routeSource',
-                    'layout': { 'line-cap': 'round', 'line-join': 'round' },
-                    'paint': { 'line-color': '#1e3a5f', 'line-width': 10, 'line-opacity': 0.8 }
-                });
-
-                map.addLayer({
-                    'id': 'routeCore',
-                    'type': 'line',
-                    'source': 'routeSource',
-                    'layout': { 'line-cap': 'round', 'line-join': 'round' },
-                    'paint': { 'line-color': '#0088FF', 'line-width': 5 }
-                });
-
-                // إضافة مصدر الكابتن
-                map.addSource('captainSource', {
-                    'type': 'geojson',
-                    'data': {
-                        'type': 'Feature',
-                        'properties': { 'bearing': 45 },
-                        'geometry': { 'type': 'Point', 'coordinates': ROUTE_COORDS[0] }
-                    }
-                });
-
-                // رسم تأثير النبض الأزرق تحت السيارة
-                map.addLayer({
-                    'id': 'captainPulse',
-                    'type': 'circle',
-                    'source': 'captainSource',
-                    'paint': { 'circle-radius': 22, 'circle-color': '#0088FF', 'circle-opacity': 0.2, 'circle-pitch-alignment': 'map' }
-                });
-
-                // رسم الأيقونة (السيارة)
+                // استبدل طبقة السيارة (captainIcon) بهذا الكود لحل مشكلة الحجم
                 map.addLayer({
                     'id': 'captainIcon',
                     'type': 'symbol',
                     'source': 'captainSource',
                     'layout': {
                         'icon-image': finalIconId, 
-                        'icon-size': finalIconId === 'car-top-view' ? 0.18 : 1.5,
+                        
+                        // السحر هنا: الحجم يتغير ديناميكياً وية التقريب والتبعيد
+                        'icon-size': [
+                            'interpolate', ['linear'], ['zoom'],
+                            13, finalIconId === 'car-top-view' ? 0.05 : 0.5, // حجم صغير جداً عند التبعيد
+                            16, finalIconId === 'car-top-view' ? 0.15 : 1.2, // حجم متوسط
+                            20, finalIconId === 'car-top-view' ? 0.35 : 2.5  // حجم كبير عند التقريب الأقصى
+                        ],
+                        
                         'icon-pitch-alignment': 'map', 
                         'icon-rotation-alignment': 'map',
                         'icon-rotate': ['get', 'bearing'], 
@@ -214,41 +171,66 @@
                 });
 
                 // ==========================================
-                // 3. المحاكاة (تحريك السيارة والكاميرا)
+                // 3. المحاكاة الانسيابية (حل مشكلة التقفيز)
                 // ==========================================
                 let currentIndex = 0;
-                setInterval(() => {
+                let step = 0;
+                const stepsPerSegment = 60; // تقسيم المسافة إلى 60 خطوة صغيرة لنعومة الحركة
+                
+                function animateCar() {
                     if (currentIndex < ROUTE_COORDS.length - 1) {
                         const current = ROUTE_COORDS[currentIndex];
                         const next = ROUTE_COORDS[currentIndex + 1];
                         
+                        // حساب زاوية الدوران مرة واحدة لكل مقطع
                         const dx = next[0] - current[0];
                         const dy = next[1] - current[1];
                         const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
                         const bearing = (angle + 90 + 360) % 360;
 
-                        // تحديث الإحداثيات
+                        // حساب نسبة التقدم بالمسافة
+                        const progress = step / stepsPerSegment;
+                        
+                        // استخراج الإحداثيات الوهمية الدقيقة (بين النقطتين)
+                        const lng = current[0] + (next[0] - current[0]) * progress;
+                        const lat = current[1] + (next[1] - current[1]) * progress;
+
+                        // 1. تحديث موقع السيارة (تتحرك خطوة مايكروية)
                         map.getSource('captainSource').setData({
                             'type': 'Feature',
                             'properties': { 'bearing': bearing },
-                            'geometry': { 'type': 'Point', 'coordinates': next }
+                            'geometry': { 'type': 'Point', 'coordinates': [lng, lat] }
                         });
 
-                        // تحريك الكاميرا ببطء ويه السيارة
-                        map.easeTo({ 
-                            center: next, 
-                            bearing: bearing, 
-                            duration: 1500, 
-                            easing: (t) => t 
+                        // 2. تحريك الكاميرا بسلاسة تامة لتلحق بالسيارة
+                        map.jumpTo({ 
+                            center: [lng, lat], 
+                            bearing: bearing 
                         });
 
-                        currentIndex++;
+                        step++;
+                        
+                        // الانتقال للمقطع التالي من الشارع إذا خلصنا الخطوات
+                        if (step >= stepsPerSegment) {
+                            step = 0;
+                            currentIndex++;
+                        }
                     } else {
-                        currentIndex = 0; 
+                        // إعادة الرحلة من البداية للتجربة
+                        currentIndex = 0;
+                        step = 0;
                     }
-                }, 2000);
+                    
+                    // استدعاء الدالة بشكل مستمر لتوليد إطارات سريعة (60fps)
+                    requestAnimationFrame(animateCar);
+                }
+                
+                // تشغيل المحرك الانسيابي
+                animateCar();
             });
         });
+
+                
     </script>
 </body>
 </html>
