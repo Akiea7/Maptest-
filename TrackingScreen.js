@@ -207,48 +207,52 @@ map.on('load', () => {
         // 12 م/ث = 43 كم/س  |  8 م/ث = 29 كم/س  |  15 م/ث = 54 كم/س
         const SPEED_MPS = 12;
 
+                // =========================================================
+        // 🏎️ محرك الحركة (نسخة محسنة الأداء - لا تسبب كراش)
+        // =========================================================
+        let currentIndex = 0;
+        let lastTimestamp = 0;
+        let segmentProgress = 0;
+        let lastDrawTime = 0; // متغير جديد للتحكم بسرعة التحديث
+
+        const SPEED_MPS = 12;
+        const FPS_LIMIT = 30; // تحديد التحديث بـ 30 إطار بالثانية لحماية المتصفح
+        const FRAME_INTERVAL = 1000 / FPS_LIMIT; 
+
         function animateCar(timestamp) {
             if (!map.getSource('captainSource')) return;
 
             if (lastTimestamp === 0) lastTimestamp = timestamp;
             const deltaTime = timestamp - lastTimestamp;
             lastTimestamp = timestamp;
-            const safeDelta = Math.min(deltaTime, 50) / 1000; // بالثواني
+            const safeDelta = Math.min(deltaTime, 50) / 1000;
 
-            // ✅ إصلاح القفز: إعادة الحساب بعد كل انتقال
             if (currentIndex >= DENSE_POINTS.length - 1) {
                 currentIndex = 0;
                 segmentProgress = 0;
-                lastTimestamp = timestamp;
                 animationFrameId = requestAnimationFrame(animateCar);
                 return;
             }
 
-            // ✅ إعادة جلب current/next بعد أي تغيير في currentIndex
             let current = DENSE_POINTS[currentIndex];
             let next = DENSE_POINTS[currentIndex + 1];
             let segmentDistance = haversineDistance(current, next);
 
-            // تجنب القسمة على صفر لو تكررت نقطة
             if (segmentDistance < 0.1) {
                 currentIndex++;
                 animationFrameId = requestAnimationFrame(animateCar);
                 return;
             }
 
-            // ✅ التقدم يعتمد على المسافة الفعلية (متر) وليس على نسبة المقطع
             segmentProgress += (safeDelta * SPEED_MPS) / segmentDistance;
 
             if (segmentProgress >= 1) {
-                // نقل الفائض الزمني للمقطع التالي (حركة متصلة بدون ومضة)
                 const overflow = segmentProgress - 1;
                 currentIndex++;
 
-                // ✅ إعادة الحساب بعد الانتقال (الحل الحقيقي للقفز)
                 if (currentIndex >= DENSE_POINTS.length - 1) {
                     currentIndex = 0;
                     segmentProgress = 0;
-                    lastTimestamp = timestamp;
                 } else {
                     current = DENSE_POINTS[currentIndex];
                     next = DENSE_POINTS[currentIndex + 1];
@@ -257,32 +261,33 @@ map.on('load', () => {
                 }
             }
 
-            // حساب الموقع الحالي
-            const lng = current[0] + (next[0] - current[0]) * segmentProgress;
-            const lat = current[1] + (next[1] - current[1]) * segmentProgress;
+            // تحديث موقع السيارة على الشاشة فقط إذا مر الوقت الكافي (حسب الـ FPS_LIMIT)
+            if (timestamp - lastDrawTime >= FRAME_INTERVAL) {
+                const lng = current[0] + (next[0] - current[0]) * segmentProgress;
+                const lat = current[1] + (next[1] - current[1]) * segmentProgress;
 
-            // ✅ Bearing حقيقي من Turf-style (بدون أي تصحيح cos)
-            const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
+                const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
 
-            // ✅ تنعيم الدوران بـ 0.3 (استجابة فورية)
-            let currentBearing = captainFeature.properties.bearing;
-            let diff = targetBearing - currentBearing;
-            while (diff > 180) diff -= 360;
-            while (diff < -180) diff += 360;
-            const smoothBearing = currentBearing + diff * 0.3;
+                let currentBearing = captainFeature.properties.bearing;
+                let diff = targetBearing - currentBearing;
+                while (diff > 180) diff -= 360;
+                while (diff < -180) diff += 360;
+                const smoothBearing = currentBearing + diff * 0.3;
 
-            // تحديث الكائن الثابت (أسرع طريقة)
-            captainFeature.geometry.coordinates = [lng, lat];
-            captainFeature.properties.bearing = smoothBearing;
-            captainFeature.properties.pulseRadius = 22 + 4 * Math.sin(timestamp / 150);
+                captainFeature.geometry.coordinates = [lng, lat];
+                captainFeature.properties.bearing = smoothBearing;
+                // ثبتنا الحجم حتى لا يصير Overload على المتصفح
+                captainFeature.properties.pulseRadius = 22; 
 
-            map.getSource('captainSource').setData(captainFeature);
+                map.getSource('captainSource').setData(captainFeature);
+                lastDrawTime = timestamp;
+            }
+
             animationFrameId = requestAnimationFrame(animateCar);
         }
 
         animationFrameId = requestAnimationFrame(animateCar);
-    });
-});
+
 
 function stopCarAnimation() {
     if (animationFrameId) {
