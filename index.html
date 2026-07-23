@@ -26,10 +26,6 @@
 
     <div id="map"></div>
 
-    <!-- ========================================== -->
-    <!-- الواجهات العائمة المضافة (باستخدام Tailwind) -->
-    <!-- ========================================== -->
-    
     <!-- شريط الحالة العلوي -->
     <div class="absolute top-6 right-5 z-40 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-md flex items-center">
         <div class="w-2 h-2 rounded-full bg-green-500 ml-2"></div>
@@ -73,7 +69,6 @@
             true 
         );
 
-        // إحداثيات المسار (ضفت كم نقطة متقاربة حتى تبين الحركة أحلى)
         const ROUTE_COORDS = [
             [44.3783246, 33.6668412],
             [44.3792000, 33.6672000],
@@ -98,9 +93,7 @@
         map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 
         map.on('load', () => {
-            // ==========================================
-            // 1. تحميل طبقة الأماكن (بدون أي تغيير)
-            // ==========================================
+            // 1. تحميل طبقة الأماكن (places.js)
             if (typeof alakPlaces !== 'undefined') {
                 let safeMapFont = ['Noto Sans Regular'];
                 const styleLayers = map.getStyle().layers;
@@ -144,24 +137,64 @@
                 });
             }
 
-                            // ... (الطبقات مال المسار والنبض والظل تبقيها مثل ما هي) ...
+            // 2. تحميل المسار والسيارة
+            map.loadImage('car-icon.png', (error, image) => {
+                let finalIconId = 'car_11'; 
+                if (!error) {
+                    map.addImage('car-top-view', image);
+                    finalIconId = 'car-top-view';
+                }
 
-                // استبدل طبقة السيارة (captainIcon) بهذا الكود لحل مشكلة الحجم
+                map.addSource('routeSource', {
+                    'type': 'geojson',
+                    'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS } }
+                });
+
+                map.addLayer({
+                    'id': 'routeCasing',
+                    'type': 'line',
+                    'source': 'routeSource',
+                    'layout': { 'line-cap': 'round', 'line-join': 'round' },
+                    'paint': { 'line-color': '#1e3a5f', 'line-width': 10, 'line-opacity': 0.8 }
+                });
+
+                map.addLayer({
+                    'id': 'routeCore',
+                    'type': 'line',
+                    'source': 'routeSource',
+                    'layout': { 'line-cap': 'round', 'line-join': 'round' },
+                    'paint': { 'line-color': '#0088FF', 'line-width': 5 }
+                });
+
+                map.addSource('captainSource', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'Feature',
+                        'properties': { 'bearing': 45 },
+                        'geometry': { 'type': 'Point', 'coordinates': ROUTE_COORDS[0] }
+                    }
+                });
+
+                map.addLayer({
+                    'id': 'captainPulse',
+                    'type': 'circle',
+                    'source': 'captainSource',
+                    'paint': { 'circle-radius': 22, 'circle-color': '#0088FF', 'circle-opacity': 0.2, 'circle-pitch-alignment': 'map' }
+                });
+
+                // طبقة السيارة مع الحجم الديناميكي
                 map.addLayer({
                     'id': 'captainIcon',
                     'type': 'symbol',
                     'source': 'captainSource',
                     'layout': {
                         'icon-image': finalIconId, 
-                        
-                        // السحر هنا: الحجم يتغير ديناميكياً وية التقريب والتبعيد
                         'icon-size': [
                             'interpolate', ['linear'], ['zoom'],
-                            13, finalIconId === 'car-top-view' ? 0.05 : 0.5, // حجم صغير جداً عند التبعيد
-                            16, finalIconId === 'car-top-view' ? 0.15 : 1.2, // حجم متوسط
-                            20, finalIconId === 'car-top-view' ? 0.35 : 2.5  // حجم كبير عند التقريب الأقصى
+                            13, finalIconId === 'car-top-view' ? 0.05 : 0.6,
+                            16, finalIconId === 'car-top-view' ? 0.15 : 1.2,
+                            20, finalIconId === 'car-top-view' ? 0.35 : 2.2
                         ],
-                        
                         'icon-pitch-alignment': 'map', 
                         'icon-rotation-alignment': 'map',
                         'icon-rotate': ['get', 'bearing'], 
@@ -170,39 +203,32 @@
                     }
                 });
 
-                // ==========================================
-                // 3. المحاكاة الانسيابية (حل مشكلة التقفيز)
-                // ==========================================
+                // 3. المحاكاة الانسيابية (بدون تقفيز)
                 let currentIndex = 0;
                 let step = 0;
-                const stepsPerSegment = 60; // تقسيم المسافة إلى 60 خطوة صغيرة لنعومة الحركة
+                const stepsPerSegment = 60; // عدد الخطوات بين كل نقطتين لنعومة الحركة
                 
                 function animateCar() {
                     if (currentIndex < ROUTE_COORDS.length - 1) {
                         const current = ROUTE_COORDS[currentIndex];
                         const next = ROUTE_COORDS[currentIndex + 1];
                         
-                        // حساب زاوية الدوران مرة واحدة لكل مقطع
                         const dx = next[0] - current[0];
                         const dy = next[1] - current[1];
                         const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
                         const bearing = (angle + 90 + 360) % 360;
 
-                        // حساب نسبة التقدم بالمسافة
                         const progress = step / stepsPerSegment;
                         
-                        // استخراج الإحداثيات الوهمية الدقيقة (بين النقطتين)
                         const lng = current[0] + (next[0] - current[0]) * progress;
                         const lat = current[1] + (next[1] - current[1]) * progress;
 
-                        // 1. تحديث موقع السيارة (تتحرك خطوة مايكروية)
                         map.getSource('captainSource').setData({
                             'type': 'Feature',
                             'properties': { 'bearing': bearing },
                             'geometry': { 'type': 'Point', 'coordinates': [lng, lat] }
                         });
 
-                        // 2. تحريك الكاميرا بسلاسة تامة لتلحق بالسيارة
                         map.jumpTo({ 
                             center: [lng, lat], 
                             bearing: bearing 
@@ -210,27 +236,22 @@
 
                         step++;
                         
-                        // الانتقال للمقطع التالي من الشارع إذا خلصنا الخطوات
                         if (step >= stepsPerSegment) {
                             step = 0;
                             currentIndex++;
                         }
                     } else {
-                        // إعادة الرحلة من البداية للتجربة
                         currentIndex = 0;
                         step = 0;
                     }
                     
-                    // استدعاء الدالة بشكل مستمر لتوليد إطارات سريعة (60fps)
                     requestAnimationFrame(animateCar);
                 }
                 
-                // تشغيل المحرك الانسيابي
+                // تشغيل المحرك
                 animateCar();
             });
         });
-
-                
     </script>
 </body>
 </html>
