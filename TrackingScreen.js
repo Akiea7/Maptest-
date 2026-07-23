@@ -128,16 +128,30 @@ map.on('load', () => {
             'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS }
         }
     });
+    // 2. تحميل المسار الأزرق المحدث (بألوان خفيفة وشفافة)
+    map.addSource('routeSource', {
+        'type': 'geojson',
+        'data': {
+            'type': 'Feature',
+            'properties': {},
+            'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS }
+        }
+    });
+    
+    // الظل أو الحافة مالت المسار (شفاف جداً)
     map.addLayer({
         'id': 'routeCasing', 'type': 'line', 'source': 'routeSource',
         'layout': { 'line-cap': 'round', 'line-join': 'round' },
-        'paint': { 'line-color': '#1e3a5f', 'line-width': 10, 'line-opacity': 0.8 }
+        'paint': { 'line-color': '#0088FF', 'line-width': 8, 'line-opacity': 0.2 } 
     });
+    
+    // قلب المسار (لون أزرق هادئ)
     map.addLayer({
         'id': 'routeCore', 'type': 'line', 'source': 'routeSource',
         'layout': { 'line-cap': 'round', 'line-join': 'round' },
-        'paint': { 'line-color': '#0088FF', 'line-width': 5 }
+        'paint': { 'line-color': '#0088FF', 'line-width': 4, 'line-opacity': 0.7 } 
     });
+
 
     // =========================================================
     // 🚗 HTML Marker المصحح بالكامل
