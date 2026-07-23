@@ -85,14 +85,16 @@ function densifyLine(coords, stepMeters = 3) {
 }
 
 map.on('load', () => {
-    map.on('load', () => {
-    // 🌟 حل مشكلة شاشة التحميل المعلقة
+
+    // 🌟 السحر هنا: إخفاء شاشة التحميل بعد تحميل الخريطة
     const loadingScreen = document.getElementById('loading-screen');
     if (loadingScreen) {
-        loadingScreen.style.opacity = '0';
-        setTimeout(() => loadingScreen.remove(), 500); // إزالة العنصر من الصفحة تماماً بعد التلاشي
+        setTimeout(() => {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => loadingScreen.remove(), 500);
+        }, 300);
     }
-        
+
     // 1. تحميل طبقة الأماكن
     if (typeof alakPlaces !== 'undefined') {
         let safeMapFont = ['Noto Sans Regular'];
