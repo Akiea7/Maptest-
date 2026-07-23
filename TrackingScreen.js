@@ -1,8 +1,9 @@
 // =========================================================
-// 🛠️ لوحة تحكم السيارة (محسّنة للحركة الانسيابية بدون قفز)
+// 🛠️ لوحة تحكم السيارة
 // =========================================================
-const CAR_SIZE = 0.05; 
-const CAR_ANGLE_OFFSET = -90; 
+const CAR_SIZE = 0.05; // حجم السيارة
+const CAR_ANGLE_OFFSET = -90; // تعديل اتجاه السيارة (إذا كانت تزحف بالعرض، جرب 0 أو 90 أو 180)
+const ANIMATION_FRAMES = 800; // كلما زاد الرقم = السيارة تصير أبطأ وأنعم
 // =========================================================
 
 maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
@@ -32,9 +33,17 @@ if (centerMarker) {
     map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
 }
 
-let animationFrameId = null;
-
 map.on('load', () => {
+
+    // إخفاء شاشة التحميل
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+        setTimeout(() => {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => loadingScreen.remove(), 500);
+        }, 500);
+    }
+
     // 1. تحميل طبقة الأماكن
     if (typeof alakPlaces !== 'undefined') {
         let safeMapFont = ['Noto Sans Regular'];
@@ -98,22 +107,19 @@ map.on('load', () => {
             'paint': { 'line-color': '#0088FF', 'line-width': 5 } 
         });
 
-        // 3. إعداد كائن ثابت (Reusable) لمنع استهلاك الذاكرة والتسبب بالتقطيع
-        const captainFeature = {
-            type: 'Feature',
-            properties: { bearing: 45, pulseRadius: 22 },
-            geometry: { type: 'Point', coordinates: [...ROUTE_COORDS[0]] }
-        };
-
         map.addSource('captainSource', {
             'type': 'geojson',
-            'data': captainFeature
+            'data': { 
+                'type': 'Feature', 
+                'properties': { 'bearing': 45 }, 
+                'geometry': { 'type': 'Point', 'coordinates': ROUTE_COORDS[0] } 
+            }
         });
 
         map.addLayer({ 
             'id': 'captainPulse', 'type': 'circle', 'source': 'captainSource', 
             'paint': { 
-                'circle-radius': ['get', 'pulseRadius'], 
+                'circle-radius': 22, 
                 'circle-color': '#0088FF', 
                 'circle-opacity': 0.2, 
                 'circle-pitch-alignment': 'map' 
@@ -135,91 +141,65 @@ map.on('load', () => {
             }
         });
 
-        // 4. المحاكاة الانسيابية (خوارزمية Delta Time لمنع القفز نهائياً)
-        let currentIndex = 0;
-        let lastTimestamp = 0;
-        let segmentProgress = 0; // التقدم داخل المقطع الحالي (من 0 إلى 1)
+        // =========================================================
+        // 3. المحاكاة الانسيابية (طريقة المسار المسبق لضمان عدم القفز)
+        // =========================================================
         
-        // سرعة السيارة: تمثل نسبة المقطع المقطوعة في كل ميلي ثانية.
-        // 0.0015 تعني أن السيارة تقطع المقطع في حوالي 666 ميلي ثانية.
-        // 🎛️ عدّل هذا الرقم للتحكم بالسرعة: رقم أصغر = أبطأ وأنعم، رقم أكبر = أسرع.
-        const speedFactor = 0.0015; 
+        // رسم الخط بالكامل باستخدام Turf
+        const routeLine = turf.lineString(ROUTE_COORDS);
+        const routeDistance = turf.length(routeLine, { units: 'kilometers' });
+        
+        // تقسيم الخط إلى نقاط ناعمة جداً
+        const arc = [];
+        for (let i = 0; i < ANIMATION_FRAMES; i++) {
+            const segment = turf.along(routeLine, (i / ANIMATION_FRAMES) * routeDistance, { units: 'kilometers' });
+            arc.push(segment.geometry.coordinates);
+        }
 
-        function animateCar(timestamp) {
-            if (!map.getSource('captainSource')) return;
+        let counter = 0;
 
-            // منع القفزات الضخمة إذا كان المتصفح في الخلفية (Tab Inactive)
-            if (lastTimestamp === 0) lastTimestamp = timestamp;
-            const deltaTime = timestamp - lastTimestamp;
-            lastTimestamp = timestamp;
-            const safeDeltaTime = Math.min(deltaTime, 50); // حد أقصى 50ms للإطار الواحد
-
-            if (currentIndex >= ROUTE_COORDS.length - 1) {
-                currentIndex = 0;
-                segmentProgress = 0;
-                lastTimestamp = 0; // إعادة ضبط الزمن لدورة انسيابية جديدة
-                animationFrameId = requestAnimationFrame(animateCar);
-                return;
+        function animateCar() {
+            if (counter >= arc.length - 1) {
+                counter = 0; // إعادة الرحلة من البداية
             }
 
-            const current = ROUTE_COORDS[currentIndex];
-            const next = ROUTE_COORDS[currentIndex + 1];
+            const currentPoint = arc[counter];
+            const nextPoint = arc[counter + 1];
 
-            const dx_raw = next[0] - current[0];
-            const dy = next[1] - current[1];
-            const dx = dx_raw * Math.cos((current[1] * Math.PI) / 180); // تصحيح خط العرض
-
-            // حساب الزاوية المستهدفة لهذا المقطع
-            const targetBearing = (Math.atan2(dx, dy) * (180 / Math.PI)) + CAR_ANGLE_OFFSET;
-
-            // زيادة التقدم بناءً على الزمن المنقضي (هذا هو سر منع القفز)
-            segmentProgress += safeDeltaTime * speedFactor;
-
-            if (segmentProgress >= 1) {
-                // الانتقال للمقطع التالي مع الاحتفاظ بأي فائض زمني لمنع التقطع بين النقاط
-                segmentProgress = segmentProgress - 1;
-                currentIndex++;
-                
-                if (currentIndex >= ROUTE_COORDS.length - 1) {
-                    currentIndex = 0;
-                    segmentProgress = 0;
-                    lastTimestamp = 0;
-                }
-            }
-
-            // حساب الموقع الحالي بناءً على التقدم
-            const lng = current[0] + dx_raw * segmentProgress;
-            const lat = current[1] + dy * segmentProgress;
-
-            // 🎯 تنعيم دوران السيارة (Smooth Bearing) لمنع "ارتعاش" المقود عند المنعطفات
-            let currentBearing = captainFeature.properties.bearing || targetBearing;
-            let diff = targetBearing - currentBearing;
+            // حساب الزاوية الثابتة باستخدام Turf
+            const pt1 = turf.point(currentPoint);
+            const pt2 = turf.point(nextPoint);
+            let bearing = turf.bearing(pt1, pt2);
             
-            // تصحيح الانتقال بين 359 و 0 درجة (لمنع الدوران العكسي المفاجئ)
-            while (diff > 180) diff -= 360;
-            while (diff < -180) diff += 360;
+            // تطبيق تعديلك (لحل مشكلة اتجاه الصورة)
+            let finalBearing = (bearing + CAR_ANGLE_OFFSET + 360) % 360;
+
+            // تحديث موقع السيارة بثبات
+            map.getSource('captainSource').setData({
+                'type': 'Feature',
+                'properties': { 'bearing': finalBearing },
+                'geometry': { 'type': 'Point', 'coordinates': currentPoint }
+            });
+
+            // تحديث واجهة المستخدم (السرعة والتقدم)
+            const progressPercent = counter / ANIMATION_FRAMES;
+            const remaining = routeDistance - (progressPercent * routeDistance);
             
-            // تطبيق تنعيم (Lerp) على الزاوية (0.15 هي نسبة نعومة الدوران)
-            const smoothBearing = currentBearing + (diff * 0.15);
+            const speedDisplay = document.getElementById('speed-display');
+            const distanceDisplay = document.getElementById('distance-display');
+            const progressText = document.getElementById('progress-percent');
+            const progressBar = document.getElementById('progress-bar');
+            
+            if (speedDisplay) speedDisplay.textContent = 45; // سرعة ثابتة تقريبية
+            if (distanceDisplay) distanceDisplay.textContent = remaining.toFixed(2);
+            if (progressText) progressText.textContent = Math.round(progressPercent * 100) + '%';
+            if (progressBar) progressBar.style.width = (progressPercent * 100) + '%';
 
-            // تحديث الكائن الثابت (أسرع طريقة لتحديث البيانات في MapLibre)
-            captainFeature.geometry.coordinates = [lng, lat];
-            captainFeature.properties.bearing = smoothBearing;
-            captainFeature.properties.pulseRadius = 22 + 4 * Math.sin(timestamp / 150);
-
-            map.getSource('captainSource').setData(captainFeature);
-
-            animationFrameId = requestAnimationFrame(animateCar);
+            counter++;
+            requestAnimationFrame(animateCar);
         }
         
-        animationFrameId = requestAnimationFrame(animateCar);
+        // بدء المحرك
+        animateCar();
     });
 });
-
-// دالة لإيقاف الأنيميشن بأمان عند الحاجة
-function stopCarAnimation() {
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
-}
