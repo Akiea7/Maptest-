@@ -133,20 +133,17 @@ map.on('load', () => {
     // 🚗 إعداد السيارة (HTML Marker)
     // =========================================================
     const carElement = document.createElement('div');
-    carElement.className = 'car-marker';
+        // ضفنا كلاس الـ CSS اللي يحتوي على الـ Base64
+    carElement.classList.add('car-marker', 'car-icon-base64');
     
     Object.assign(carElement.style, {
         width: CAR_SIZE_PX + 'px',
         height: CAR_SIZE_PX + 'px',
-        backgroundImage: "url('car-icon.png')",
-        backgroundSize: 'contain',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
         imageRendering: 'crisp-edges', 
         willChange: 'transform, opacity',
-        // ملاحظة: سمحنا فقط بـ transition للشفافية حتى تظهر/تختفي بنعومة، بدون التأثير على الحركة
         transition: 'opacity 0.2s ease-in-out' 
     });
+
 
     const pulseElement = document.createElement('div');
     Object.assign(pulseElement.style, {
