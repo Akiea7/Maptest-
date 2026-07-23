@@ -1,8 +1,8 @@
 // =========================================================
-// 🛠️ لوحة تحكم السيارة - النسخة النهائية (HTML Marker)
+// 🛠️ الإعدادات المصححة والمثالية (HTML Marker 3D)
 // =========================================================
-const CAR_SIZE_PX = 40; // حجم السيارة بالبكسل
-const CAR_ANGLE_OFFSET = 0; // السيارة PNG موجهة للأعلى
+const CAR_SIZE_PX = 32; // حجم ثابت للسيارة
+const CAR_ANGLE_OFFSET = 0; // السيارة موجهة للأعلى
 // =========================================================
 
 maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
@@ -21,7 +21,7 @@ const map = new maplibregl.Map({
     center: ROUTE_COORDS[0],
     zoom: 16.5,
     bearing: 45,
-    pitch: 45,
+    pitch: 45, // الخريطة مائلة 3D
     antialias: true,
     attributionControl: false
 });
@@ -111,7 +111,7 @@ map.on('load', () => {
         });
     }
 
-    // 2. تحميل المسار
+    // 2. تحميل المسار الأزرق
     map.addSource('routeSource', {
         'type': 'geojson',
         'data': {
@@ -132,66 +132,81 @@ map.on('load', () => {
     });
 
     // =========================================================
-    // 🚗 HTML Marker - الحل الجذري للمشكلة
+    // 🚗 HTML Marker المصحح بالكامل
     // =========================================================
-    
-    // إنشاء عنصر HTML للسيارة
     const carElement = document.createElement('div');
-    carElement.style.width = CAR_SIZE_PX + 'px';
-    carElement.style.height = CAR_SIZE_PX + 'px';
-    carElement.style.backgroundImage = "url('car-icon.png')";
-    carElement.style.backgroundSize = 'contain';
-    carElement.style.backgroundRepeat = 'no-repeat';
-    carElement.style.backgroundPosition = 'center';
-    // 🔑 السر في السلاسة: تفويض الحركة لـ GPU
-    carElement.style.willChange = 'transform';
-    carElement.style.transition = 'transform 0.1s linear';
+    carElement.className = 'car-marker';
+    
+    // CSS داخلي للعنصر لمنع التمدد والتشوه
+    Object.assign(carElement.style, {
+        width: CAR_SIZE_PX + 'px',
+        height: CAR_SIZE_PX + 'px',
+        backgroundImage: "url('car-icon.png')",
+        backgroundSize: 'contain',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        imageRendering: 'crisp-edges', // الحفاظ على دقة الصورة
+        willChange: 'transform',
+        transition: 'none' // إزالة أي تأخير يسبب الزحف عن المسار
+    });
 
-    // إنشاء نبض حول السيارة (اختياري)
+    // النبض تحت السيارة
     const pulseElement = document.createElement('div');
-    pulseElement.style.position = 'absolute';
-    pulseElement.style.width = '60px';
-    pulseElement.style.height = '60px';
-    pulseElement.style.borderRadius = '50%';
-    pulseElement.style.backgroundColor = 'rgba(0, 136, 255, 0.2)';
-    pulseElement.style.top = '50%';
-    pulseElement.style.left = '50%';
-    pulseElement.style.transform = 'translate(-50%, -50%)';
-    pulseElement.style.animation = 'pulse-animation 2s infinite';
+    Object.assign(pulseElement.style, {
+        position: 'absolute',
+        width: '50px',
+        height: '50px',
+        borderRadius: '50%',
+        backgroundColor: 'rgba(0, 136, 255, 0.3)',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        animation: 'pulse-animation 2s infinite',
+        pointerEvents: 'none'
+    });
     carElement.appendChild(pulseElement);
 
-    // إضافة CSS للنبض
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes pulse-animation {
-            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.6; }
-            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.2; }
-            100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.6; }
-        }
-    `;
-    document.head.appendChild(style);
+    // إضافة الـ CSS الخاص بالنبض والتمركز
+    if (!document.getElementById('car-styles-fix')) {
+        const style = document.createElement('style');
+        style.id = 'car-styles-fix';
+        style.textContent = `
+            @keyframes pulse-animation {
+                0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+                50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.1; }
+                100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+            }
+            .car-marker {
+                transform-origin: center center;
+                backface-visibility: hidden;
+            }
+        `;
+        document.head.appendChild(style);
+    }
 
+    // ✅ السر كله هنا: pitchAlignment + rotationAlignment 
     const carMarker = new maplibregl.Marker({
         element: carElement,
-        rotationAlignment: 'map'
+        rotationAlignment: 'map',    // تدور مع الخريطة
+        pitchAlignment: 'map',       // تميل مع الخريطة 3D
+        anchor: 'center'             // التثبيت الدقيق من المنتصف
     })
     .setLngLat(ROUTE_COORDS[0])
     .addTo(map);
 
     // =========================================================
-    // 🎯 Polyline Sampling
+    // 🎯 Polyline Sampling (النقاط الكثيفة)
     // =========================================================
     const DENSE_POINTS = densifyLine(ROUTE_COORDS, 3);
 
     // =========================================================
-    // 🏎️ محرك الحركة المحسّن
+    // 🏎️ محرك الحركة (60 إطار بالثانية - أداء صاروخي)
     // =========================================================
     let currentIndex = 0;
     let lastTimestamp = 0;
     let segmentProgress = 0;
     let currentBearing = 0;
-
-    const SPEED_MPS = 12;
+    const SPEED_MPS = 12; // 12 متر بالثانية = تقريباً 43 كم/ساعة
 
     function animateCar(timestamp) {
         if (lastTimestamp === 0) lastTimestamp = timestamp;
@@ -240,13 +255,13 @@ map.on('load', () => {
 
         const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
 
-        // تنعيم الدوران
+        // تنعيم الدوران بشكل احترافي
         let diff = targetBearing - currentBearing;
         while (diff > 180) diff -= 360;
         while (diff < -180) diff += 360;
         currentBearing += diff * 0.3;
 
-        // 🔑 تحديث HTML Marker (سريع جداً، لا يمر عبر WebGL)
+        // ✅ التحديث المباشر للماركر (خفيف جداً على المتصفح)
         carMarker.setLngLat([lng, lat]);
         carMarker.setRotation(currentBearing);
 
