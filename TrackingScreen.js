@@ -1,5 +1,5 @@
 // =========================================================
-// 🛠️ الإعدادات النهائية لتطبيق "ألك" (Alek)
+// 🛠️ الإعدادات النهائية لشاشة التتبع (Alek App)
 // =========================================================
 const CAR_SIZE_PX = 32; 
 const CAR_ANGLE_OFFSET = 0; 
@@ -16,7 +16,7 @@ const ROUTE_COORDS = [
     [44.3835000, 33.6692000], 
     [44.3842000, 33.6680000], 
     [44.3850000, 33.6660000],
-    [44.3830000, 33.650000], 
+    [44.3830000, 33.6650000], 
     [44.3800000, 33.6635000]  
 ];
 
@@ -39,6 +39,9 @@ if (centerMarker) {
 
 let animationFrameId = null;
 
+// =========================================================
+// 🧮 دوال العمليات الحسابية للمسار
+// =========================================================
 function haversineDistance(a, b) {
     const R = 6371000;
     const dLat = (b[1] - a[1]) * Math.PI / 180;
@@ -74,7 +77,7 @@ function densifyLine(coords, stepMeters = 3) {
 }
 
 map.on('load', () => {
-    // 1. الأماكن
+    // 1. تحميل الأماكن
     if (typeof alakPlaces !== 'undefined') {
         let safeMapFont = ['Noto Sans Regular'];
         const styleLayers = map.getStyle().layers;
@@ -106,7 +109,7 @@ map.on('load', () => {
         });
     }
 
-    // 2. المسار
+    // 2. رسم المسار بألوان هادئة
     map.addSource('routeSource', {
         'type': 'geojson',
         'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS } }
@@ -127,138 +130,148 @@ map.on('load', () => {
     });
 
     // =========================================================
-    // 🚗 إعداد السيارة المباشر (ضمان 100%)
+    // 🚗 التحميل المسبق المباشر (لحل مشكلة التدرج والوميض)
     // =========================================================
-    const carElement = document.createElement('div');
-    carElement.className = 'car-marker';
-    
-    Object.assign(carElement.style, {
-        width: CAR_SIZE_PX + 'px',
-        height: CAR_SIZE_PX + 'px',
-        backgroundImage: "url('car-icon.png')", // تأكد أن صورة car-icon.png موجودة بنفس مجلد المشروع
-        backgroundSize: 'contain',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
-        imageRendering: 'crisp-edges', 
-        willChange: 'transform, opacity',
-        transition: 'opacity 0.2s ease-in-out' 
-    });
+    const carImg = new Image();
+    carImg.src = 'car-icon.png'; // الصورة ستتحمل في الذاكرة أولاً
 
-    const pulseElement = document.createElement('div');
-    Object.assign(pulseElement.style, {
-        position: 'absolute',
-        width: '50px',
-        height: '50px',
-        borderRadius: '50%',
-        backgroundColor: 'rgba(66, 133, 244, 0.3)',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        animation: 'pulse-animation 2s infinite',
-        pointerEvents: 'none'
-    });
-    carElement.appendChild(pulseElement);
+    carImg.onload = () => {
+        // لن يتم تنفيذ هذا الكود إلا بعد اكتمال تحميل الصورة 100%
+        const carElement = document.createElement('div');
+        carElement.className = 'car-marker';
+        
+        Object.assign(carElement.style, {
+            width: CAR_SIZE_PX + 'px',
+            height: CAR_SIZE_PX + 'px',
+            backgroundImage: `url('${carImg.src}')`, 
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            imageRendering: 'crisp-edges', 
+            willChange: 'transform, opacity',
+            transition: 'opacity 0.2s ease-in-out' 
+        });
 
-    if (!document.getElementById('car-styles-fix')) {
-        const style = document.createElement('style');
-        style.id = 'car-styles-fix';
-        style.textContent = `
-            @keyframes pulse-animation {
-                0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
-                50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.1; }
-                100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
-            }
-            .car-marker {
-                transform-origin: center center;
-                backface-visibility: hidden;
-            }
-        `;
-        document.head.appendChild(style);
-    }
+        // تأثير النبض الوهمي
+        const pulseElement = document.createElement('div');
+        Object.assign(pulseElement.style, {
+            position: 'absolute',
+            width: '50px',
+            height: '50px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(66, 133, 244, 0.3)',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            animation: 'pulse-animation 2s infinite',
+            pointerEvents: 'none'
+        });
+        carElement.appendChild(pulseElement);
 
-    const carMarker = new maplibregl.Marker({
-        element: carElement,
-        rotationAlignment: 'map',    
-        pitchAlignment: 'map',       
-        anchor: 'center'             
-    })
-    .setLngLat(ROUTE_COORDS[0])
-    .addTo(map);
-
-    map.on('zoom', () => {
-        if (map.getZoom() < MIN_VISIBLE_ZOOM) {
-            carElement.style.opacity = '0'; 
-        } else {
-            carElement.style.opacity = '1'; 
+        // إضافة ستايلات الأنيميشن بشكل برمجي لمنع الحاجة لملف CSS
+        if (!document.getElementById('car-styles-fix')) {
+            const style = document.createElement('style');
+            style.id = 'car-styles-fix';
+            style.textContent = `
+                @keyframes pulse-animation {
+                    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+                    50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.1; }
+                    100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+                }
+                .car-marker {
+                    transform-origin: center center;
+                    backface-visibility: hidden;
+                }
+            `;
+            document.head.appendChild(style);
         }
-    });
 
-    // =========================================================
-    // 🎯 محرك الحركة
-    // =========================================================
-    const DENSE_POINTS = densifyLine(ROUTE_COORDS, 3);
-    let currentIndex = 0;
-    let lastTimestamp = 0;
-    let segmentProgress = 0;
-    let currentBearing = 0;
-    const SPEED_MPS = 12; 
+        const carMarker = new maplibregl.Marker({
+            element: carElement,
+            rotationAlignment: 'map',    
+            pitchAlignment: 'map',       
+            anchor: 'center'             
+        })
+        .setLngLat(ROUTE_COORDS[0])
+        .addTo(map);
 
-    function animateCar(timestamp) {
-        if (lastTimestamp === 0) lastTimestamp = timestamp;
-        const deltaTime = timestamp - lastTimestamp;
-        lastTimestamp = timestamp;
-        const safeDelta = Math.min(deltaTime, 50) / 1000;
+        // إخفاء السيارة والمسار عند التصغير
+        map.on('zoom', () => {
+            if (map.getZoom() < MIN_VISIBLE_ZOOM) {
+                carElement.style.opacity = '0'; 
+            } else {
+                carElement.style.opacity = '1'; 
+            }
+        });
 
-        if (currentIndex >= DENSE_POINTS.length - 1) {
-            currentIndex = 0;
-            segmentProgress = 0;
+        // =========================================================
+        // 🎯 محرك الحركة الدقيق
+        // =========================================================
+        const DENSE_POINTS = densifyLine(ROUTE_COORDS, 3);
+        let currentIndex = 0;
+        let lastTimestamp = 0;
+        let segmentProgress = 0;
+        let currentBearing = 0;
+        const SPEED_MPS = 12; 
+
+        function animateCar(timestamp) {
+            if (lastTimestamp === 0) lastTimestamp = timestamp;
+            const deltaTime = timestamp - lastTimestamp;
             lastTimestamp = timestamp;
-            animationFrameId = requestAnimationFrame(animateCar);
-            return;
-        }
-
-        let current = DENSE_POINTS[currentIndex];
-        let next = DENSE_POINTS[currentIndex + 1];
-        let segmentDistance = haversineDistance(current, next);
-
-        if (segmentDistance < 0.1) {
-            currentIndex++;
-            animationFrameId = requestAnimationFrame(animateCar);
-            return;
-        }
-
-        segmentProgress += (safeDelta * SPEED_MPS) / segmentDistance;
-
-        if (segmentProgress >= 1) {
-            const overflow = segmentProgress - 1;
-            currentIndex++;
+            const safeDelta = Math.min(deltaTime, 50) / 1000;
 
             if (currentIndex >= DENSE_POINTS.length - 1) {
                 currentIndex = 0;
                 segmentProgress = 0;
                 lastTimestamp = timestamp;
-            } else {
-                current = DENSE_POINTS[currentIndex];
-                next = DENSE_POINTS[currentIndex + 1];
-                segmentDistance = haversineDistance(current, next);
-                segmentProgress = (overflow * SPEED_MPS) / segmentDistance;
+                animationFrameId = requestAnimationFrame(animateCar);
+                return;
             }
+
+            let current = DENSE_POINTS[currentIndex];
+            let next = DENSE_POINTS[currentIndex + 1];
+            let segmentDistance = haversineDistance(current, next);
+
+            if (segmentDistance < 0.1) {
+                currentIndex++;
+                animationFrameId = requestAnimationFrame(animateCar);
+                return;
+            }
+
+            segmentProgress += (safeDelta * SPEED_MPS) / segmentDistance;
+
+            if (segmentProgress >= 1) {
+                const overflow = segmentProgress - 1;
+                currentIndex++;
+
+                if (currentIndex >= DENSE_POINTS.length - 1) {
+                    currentIndex = 0;
+                    segmentProgress = 0;
+                    lastTimestamp = timestamp;
+                } else {
+                    current = DENSE_POINTS[currentIndex];
+                    next = DENSE_POINTS[currentIndex + 1];
+                    segmentDistance = haversineDistance(current, next);
+                    segmentProgress = (overflow * SPEED_MPS) / segmentDistance;
+                }
+            }
+
+            const lng = current[0] + (next[0] - current[0]) * segmentProgress;
+            const lat = current[1] + (next[1] - current[1]) * segmentProgress;
+            const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
+
+            let diff = targetBearing - currentBearing;
+            while (diff > 180) diff -= 360;
+            while (diff < -180) diff += 360;
+            currentBearing += diff * 0.3;
+
+            carMarker.setLngLat([lng, lat]);
+            carMarker.setRotation(currentBearing);
+
+            animationFrameId = requestAnimationFrame(animateCar);
         }
 
-        const lng = current[0] + (next[0] - current[0]) * segmentProgress;
-        const lat = current[1] + (next[1] - current[1]) * segmentProgress;
-        const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
-
-        let diff = targetBearing - currentBearing;
-        while (diff > 180) diff -= 360;
-        while (diff < -180) diff += 360;
-        currentBearing += diff * 0.3;
-
-        carMarker.setLngLat([lng, lat]);
-        carMarker.setRotation(currentBearing);
-
+        // تشغيل الحركة بعد التأكد التام من تحميل كل شيء
         animationFrameId = requestAnimationFrame(animateCar);
-    }
-
-    animationFrameId = requestAnimationFrame(animateCar);
+    };
 });
