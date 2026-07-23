@@ -38,6 +38,16 @@ if (centerMarker) {
 let animationFrameId = null;
 
 map.on('load', () => {
+
+    // 🌟 السحر هنا: هذا الكود اللي كان مفقود لإخفاء شاشة التحميل!
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+        setTimeout(() => {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => loadingScreen.remove(), 500);
+        }, 500); // ينتظر نص ثانية بعدين يخفيها
+    }
+
     // 1. تحميل طبقة الأماكن
     if (typeof alakPlaces !== 'undefined') {
         let safeMapFont = ['Noto Sans Regular'];
@@ -200,7 +210,7 @@ map.on('load', () => {
     });
 });
 
-// 🛠️ دالة اختيارية يُستدعى بها إيقاف الأنيميشن بأمان عند الحاجة (مثلاً عند unmount في React/Vue)
+// 🛠️ دالة اختيارية يُستدعى بها إيقاف الأنيميشن بأمان عند الحاجة
 function stopCarAnimation() {
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
