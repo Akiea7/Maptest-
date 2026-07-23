@@ -1,121 +1,134 @@
-// 1. الإحداثيات والمسار التجريبي
-const ROUTE_COORDINATES = [
-    [44.3615, 33.3152],
-    [44.3630, 33.3165],
-    [44.3650, 33.3180],
-    [44.3675, 33.3200],
-    [44.3700, 33.3220]
+// =========================================================
+// 🛠️ لوحة تحكم السيارة (عدل هاي الرقمين بس إذا شفت خلل)
+// =========================================================
+const CAR_SIZE = 0.05; // إذا السيارة عملاقة صغر الرقم (مثلاً 0.03)، وإذا صغيرة كبره (مثلاً 0.08)
+const CAR_ANGLE_OFFSET = -90; // إذا السيارة تمشي بالعرض، غير هذا الرقم إلى (0 أو 90 أو 180 أو -90) لحد ما تصير عدلة
+// =========================================================
+
+maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
+
+const ROUTE_COORDS = [
+    [44.3783246, 33.6668412],
+    [44.3792000, 33.6672000],
+    [44.3805000, 33.6678000],
+    [44.3820000, 33.6685000],
+    [44.3835000, 33.6692000]
 ];
 
-// 2. تهيئة الخريطة وربطها بالستايل مالتك
 const map = new maplibregl.Map({
-    container: 'map', // يربط الخريطة بالـ div اللي بالـ HTML
-    style: 'https://akiea7.github.io/Maptest-/alak-style.json',
-    center: ROUTE_COORDINATES[0],
-    zoom: 17,
-    pitch: 45,
-    bearing: 0
+    container: 'map',
+    style: 'alak-style.json?v=3',
+    center: ROUTE_COORDS[0], 
+    zoom: 16.5,
+    bearing: 45, 
+    pitch: 45,   
+    antialias: true,
+    attributionControl: false 
 });
 
-// 3. لما تحمل الخريطة، نبدأ نرسم الطبقات
+const centerMarker = document.getElementById('center-marker');
+map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
+map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
+
 map.on('load', () => {
-    
-    // تحميل صورة السيارة (تأكد إنها مرفوعة ويا الملفات)
+    // 1. تحميل طبقة الأماكن
+    if (typeof alakPlaces !== 'undefined') {
+        let safeMapFont = ['Noto Sans Regular'];
+        const styleLayers = map.getStyle().layers;
+        for (let i = 0; i < styleLayers.length; i++) {
+            if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
+                safeMapFont = styleLayers[i].layout['text-font'];
+                break;
+            }
+        }
+        map.addSource('alak-custom-places', { 'type': 'geojson', 'data': alakPlaces });
+        map.addLayer({
+            'id': 'alak-places-layer', 'type': 'symbol', 'source': 'alak-custom-places', 'minzoom': 13, 
+            'layout': { 'icon-image': ['concat', ['get', 'icon'], '_11'], 'icon-size': 1.1, 'text-field': ['get', 'title'], 'text-font': safeMapFont, 'text-size': ['interpolate', ['linear'], ['zoom'], 14, 11, 17, 13, 20, 16], 'symbol-sort-key': ['coalesce', ['get', 'priority'], 10], 'text-offset': [0, 1.2], 'text-anchor': 'top', 'icon-allow-overlap': false, 'text-allow-overlap': false, 'icon-padding': 2, 'text-padding': 2, 'icon-optional': true },
+            'paint': { 'text-color': '#4a4a4a', 'text-halo-color': '#ffffff', 'text-halo-width': 2 }
+        });
+    }
+
+    // 2. تحميل المسار والسيارة
     map.loadImage('car-icon.png', (error, image) => {
+        let finalIconId = 'car_11'; 
         if (!error) {
             map.addImage('car-top-view', image);
+            finalIconId = 'car-top-view';
         }
 
-        // --- رسم المسار المزدوج (Casing & Core) ---
-        map.addSource('route', {
+        map.addSource('routeSource', { 'type': 'geojson', 'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS } } });
+        map.addLayer({ 'id': 'routeCasing', 'type': 'line', 'source': 'routeSource', 'layout': { 'line-cap': 'round', 'line-join': 'round' }, 'paint': { 'line-color': '#1e3a5f', 'line-width': 10, 'line-opacity': 0.8 } });
+        map.addLayer({ 'id': 'routeCore', 'type': 'line', 'source': 'routeSource', 'layout': { 'line-cap': 'round', 'line-join': 'round' }, 'paint': { 'line-color': '#0088FF', 'line-width': 5 } });
+
+        map.addSource('captainSource', {
             'type': 'geojson',
-            'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDINATES } }
+            'data': { 'type': 'Feature', 'properties': { 'bearing': 45 }, 'geometry': { 'type': 'Point', 'coordinates': ROUTE_COORDS[0] } }
         });
+
+        map.addLayer({ 'id': 'captainPulse', 'type': 'circle', 'source': 'captainSource', 'paint': { 'circle-radius': 22, 'circle-color': '#0088FF', 'circle-opacity': 0.2, 'circle-pitch-alignment': 'map' } });
 
         map.addLayer({
-            'id': 'route-casing',
-            'type': 'line',
-            'source': 'route',
-            'layout': { 'line-cap': 'round', 'line-join': 'round' },
-            'paint': { 'line-color': '#FFFFFF', 'line-width': 10, 'line-opacity': 0.9 }
-        });
-
-        map.addLayer({
-            'id': 'route-core',
-            'type': 'line',
-            'source': 'route',
-            'layout': { 'line-cap': 'round', 'line-join': 'round' },
-            'paint': { 'line-color': '#0066FF', 'line-width': 5 }
-        });
-
-        // --- رسم سيارة الكابتن (النقطة الأولية) ---
-        map.addSource('captain', {
-            'type': 'geojson',
-            'data': {
-                'type': 'Feature',
-                'properties': { 'bearing': 45 },
-                'geometry': { 'type': 'Point', 'coordinates': ROUTE_COORDINATES[0] }
+            'id': 'captainIcon',
+            'type': 'symbol',
+            'source': 'captainSource',
+            'layout': {
+                'icon-image': finalIconId, 
+                'icon-size': finalIconId === 'car-top-view' ? CAR_SIZE : 1.5, 
+                'icon-pitch-alignment': 'map', 
+                'icon-rotation-alignment': 'map',
+                'icon-rotate': ['get', 'bearing'], 
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true
             }
         });
 
-        // النبض والظل والأيقونة
-        map.addLayer({
-            'id': 'captain-pulse',
-            'type': 'circle',
-            'source': 'captain',
-            'paint': { 'circle-radius': 18, 'circle-color': '#0066FF', 'circle-opacity': 0.2, 'circle-pitch-alignment': 'map' }
-        });
-
-        map.addLayer({
-            'id': 'captain-shadow',
-            'type': 'circle',
-            'source': 'captain',
-            'paint': { 'circle-radius': 12, 'circle-color': '#000000', 'circle-opacity': 0.3, 'circle-translate': [0, 4] }
-        });
-
-        if (!error) {
-            map.addLayer({
-                'id': 'captain-icon',
-                'type': 'symbol',
-                'source': 'captain',
-                'layout': {
-                    'icon-image': 'car-top-view',
-                    'icon-size': 0.18,
-                    'icon-rotate': ['get', 'bearing'],
-                    'icon-rotation-alignment': 'map',
-                    'icon-pitch-alignment': 'map',
-                    'icon-allow-overlap': true
-                }
-            });
-        }
-
-        // --- 4. المحاكاة (تحريك السيارة والكاميرا) ---
+        // 3. المحاكاة الانسيابية
         let currentIndex = 0;
-        setInterval(() => {
-            if (currentIndex < ROUTE_COORDINATES.length - 1) {
-                const current = ROUTE_COORDINATES[currentIndex];
-                const next = ROUTE_COORDINATES[currentIndex + 1];
-                
-                // حساب زاوية دوران السيارة
-                const dx = next[0] - current[0];
-                const dy = next[1] - current[1];
-                const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-                const bearing = (angle + 90 + 360) % 360;
+        let startTime = null;
+        const speed = 0.00003; 
 
-                // تحديث موقع الكابتن بالخريطة
-                map.getSource('captain').setData({
-                    'type': 'Feature',
-                    'properties': { 'bearing': bearing },
-                    'geometry': { 'type': 'Point', 'coordinates': next }
-                });
-
-                // توجيه الكاميرا الذكية لملاحقة السيارة
-                map.easeTo({ center: next, bearing: bearing, duration: 1500, easing: (t) => t });
-
-                currentIndex++;
-            } else {
+        function animateCar(timestamp) {
+            if (currentIndex >= ROUTE_COORDS.length - 1) {
                 currentIndex = 0; 
+                startTime = null;
+                requestAnimationFrame(animateCar);
+                return;
             }
-        }, 2000);
+
+            const current = ROUTE_COORDS[currentIndex];
+            const next = ROUTE_COORDS[currentIndex + 1];
+            
+            const dx = next[0] - current[0];
+            const dy = next[1] - current[1];
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const duration = distance / speed; 
+
+            if (!startTime) startTime = timestamp;
+            let progress = (timestamp - startTime) / duration;
+
+            if (progress >= 1) {
+                currentIndex++;
+                startTime = null;
+                requestAnimationFrame(animateCar);
+                return;
+            }
+
+            const baseBearing = Math.atan2(dx, dy) * (180 / Math.PI);
+            const finalBearing = baseBearing + CAR_ANGLE_OFFSET;
+
+            const lng = current[0] + dx * progress;
+            const lat = current[1] + dy * progress;
+
+            map.getSource('captainSource').setData({
+                'type': 'Feature',
+                'properties': { 'bearing': finalBearing },
+                'geometry': { 'type': 'Point', 'coordinates': [lng, lat] }
+            });
+
+            requestAnimationFrame(animateCar);
+        }
+        
+        requestAnimationFrame(animateCar);
     });
 });
