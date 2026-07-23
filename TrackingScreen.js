@@ -1,7 +1,7 @@
 // =========================================================
-// 🛠️ الإعدادات النهائية لشاشة التتبع (Alek App)
+// 🛠️ الإعدادات النهائية لشاشة التتبع (Alek App) - نسخة 2D
 // =========================================================
-const CAR_SIZE_PX = 48; 
+const CAR_SIZE_PX = 48; // كبرنا السيارة
 const CAR_ANGLE_OFFSET = 0; 
 const MIN_VISIBLE_ZOOM = 13.5; 
 // =========================================================
@@ -25,8 +25,10 @@ const map = new maplibregl.Map({
     style: 'alak-style.json?v=3',
     center: ROUTE_COORDS[0],
     zoom: 16.5,
-    bearing: 45,
-    pitch: 45, 
+    bearing: 0, // الخريطة عدلة مو مايلة
+    pitch: 0,   // نظرة من الأعلى (2D)
+    dragPitch: false, // منع المستخدم من إمالة الخريطة (إلغاء الـ 3D)
+    pitchWithRotate: false, // منع الإمالة عند التدوير
     antialias: true,
     attributionControl: false
 });
@@ -109,7 +111,7 @@ map.on('load', () => {
         });
     }
 
-    // 2. رسم المسار بألوان هادئة
+    // 2. رسم المسار
     map.addSource('routeSource', {
         'type': 'geojson',
         'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS } }
@@ -130,13 +132,12 @@ map.on('load', () => {
     });
 
     // =========================================================
-    // 🚗 التحميل المسبق المباشر (لحل مشكلة التدرج والوميض)
+    // 🚗 إعداد السيارة
     // =========================================================
     const carImg = new Image();
-    carImg.src = 'car-icon.png'; // الصورة ستتحمل في الذاكرة أولاً
+    carImg.src = 'car-icon.png'; 
 
     carImg.onload = () => {
-        // لن يتم تنفيذ هذا الكود إلا بعد اكتمال تحميل الصورة 100%
         const carElement = document.createElement('div');
         carElement.className = 'car-marker';
         
@@ -152,12 +153,11 @@ map.on('load', () => {
             transition: 'opacity 0.2s ease-in-out' 
         });
 
-        // تأثير النبض الوهمي
         const pulseElement = document.createElement('div');
         Object.assign(pulseElement.style, {
             position: 'absolute',
-            width: '50px',
-            height: '50px',
+            width: '60px',
+            height: '60px',
             borderRadius: '50%',
             backgroundColor: 'rgba(66, 133, 244, 0.3)',
             top: '50%',
@@ -168,7 +168,6 @@ map.on('load', () => {
         });
         carElement.appendChild(pulseElement);
 
-        // إضافة ستايلات الأنيميشن بشكل برمجي لمنع الحاجة لملف CSS
         if (!document.getElementById('car-styles-fix')) {
             const style = document.createElement('style');
             style.id = 'car-styles-fix';
@@ -189,13 +188,11 @@ map.on('load', () => {
         const carMarker = new maplibregl.Marker({
             element: carElement,
             rotationAlignment: 'map',    
-            pitchAlignment: 'map',       
             anchor: 'center'             
         })
         .setLngLat(ROUTE_COORDS[0])
         .addTo(map);
 
-        // إخفاء السيارة والمسار عند التصغير
         map.on('zoom', () => {
             if (map.getZoom() < MIN_VISIBLE_ZOOM) {
                 carElement.style.opacity = '0'; 
@@ -205,7 +202,7 @@ map.on('load', () => {
         });
 
         // =========================================================
-        // 🎯 محرك الحركة الدقيق
+        // 🎯 محرك الحركة (بدون رجفة)
         // =========================================================
         const DENSE_POINTS = densifyLine(ROUTE_COORDS, 3);
         let currentIndex = 0;
@@ -263,7 +260,15 @@ map.on('load', () => {
             let diff = targetBearing - currentBearing;
             while (diff > 180) diff -= 360;
             while (diff < -180) diff += 360;
-            currentBearing += diff * 0.3;
+            
+            // ✅ الحل السحري للهزة (Jitter Fix):
+            // إذا كان التغيير بالزاوية أقل من درجة وحدة، انطيها الزاوية المباشرة (استعدال)
+            // وإذا الاستدارة قوية (لفة شارع)، نعمها حتى تلف براحتها
+            if (Math.abs(diff) < 1) {
+                currentBearing = targetBearing;
+            } else {
+                currentBearing += diff * 0.2; 
+            }
 
             carMarker.setLngLat([lng, lat]);
             carMarker.setRotation(currentBearing);
@@ -271,7 +276,6 @@ map.on('load', () => {
             animationFrameId = requestAnimationFrame(animateCar);
         }
 
-        // تشغيل الحركة بعد التأكد التام من تحميل كل شيء
         animationFrameId = requestAnimationFrame(animateCar);
     };
 });
