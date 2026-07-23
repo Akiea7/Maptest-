@@ -1,23 +1,23 @@
 // =========================================================
-// 🛠️ الإعدادات (مسار الطارمية + إخفاء عند التبعيد)
+// 🛠️ الإعدادات النهائية لتطبيق "ألك" (Alek)
 // =========================================================
 const CAR_SIZE_PX = 32; 
 const CAR_ANGLE_OFFSET = 0; 
-const MIN_VISIBLE_ZOOM = 13.5; // مستوى التقريب اللي تختفي بي السيارة والمسار
+const MIN_VISIBLE_ZOOM = 13.5; 
 // =========================================================
 
 maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
 
-// مسار طويل وتجريبي في الطارمية (شارع رئيسي ثم انعطاف لشارع فرعي)
+// مسار الطارمية
 const ROUTE_COORDS = [
-    [44.3735000, 33.6645000], // نقطة البداية
+    [44.3735000, 33.6645000], 
     [44.3783246, 33.6668412], 
     [44.3805000, 33.6678000],
-    [44.3835000, 33.6692000], // تقاطع للاستدارة
-    [44.3842000, 33.6680000], // دخول شارع فرعي يمين
+    [44.3835000, 33.6692000], 
+    [44.3842000, 33.6680000], 
     [44.3850000, 33.6660000],
-    [44.3830000, 33.6650000], // استدارة أخرى
-    [44.3800000, 33.6635000]  // نقطة النهاية
+    [44.3830000, 33.650000], 
+    [44.3800000, 33.6635000]  
 ];
 
 const map = new maplibregl.Map({
@@ -39,9 +39,6 @@ if (centerMarker) {
 
 let animationFrameId = null;
 
-// =========================================================
-// 🧮 دوال حساب المسافة والزاوية وتقسيم المسار
-// =========================================================
 function haversineDistance(a, b) {
     const R = 6371000;
     const dLat = (b[1] - a[1]) * Math.PI / 180;
@@ -77,7 +74,7 @@ function densifyLine(coords, stepMeters = 3) {
 }
 
 map.on('load', () => {
-    // 1. تحميل طبقة الأماكن (POIs)
+    // 1. الأماكن
     if (typeof alakPlaces !== 'undefined') {
         let safeMapFont = ['Noto Sans Regular'];
         const styleLayers = map.getStyle().layers;
@@ -109,7 +106,7 @@ map.on('load', () => {
         });
     }
 
-    // 2. تحميل المسار بألوان هادئة ومريحة للعين مع خاصية الإخفاء عند التبعيد
+    // 2. المسار
     map.addSource('routeSource', {
         'type': 'geojson',
         'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS } }
@@ -117,33 +114,35 @@ map.on('load', () => {
     
     map.addLayer({
         'id': 'routeCasing', 'type': 'line', 'source': 'routeSource',
-        'minzoom': MIN_VISIBLE_ZOOM, // الإخفاء عند التبعيد
+        'minzoom': MIN_VISIBLE_ZOOM,
         'layout': { 'line-cap': 'round', 'line-join': 'round' },
-        'paint': { 'line-color': '#8ab4f8', 'line-width': 8, 'line-opacity': 0.4 } // لون حافة شفاف وهادئ
+        'paint': { 'line-color': '#8ab4f8', 'line-width': 8, 'line-opacity': 0.4 }
     });
     
     map.addLayer({
         'id': 'routeCore', 'type': 'line', 'source': 'routeSource',
-        'minzoom': MIN_VISIBLE_ZOOM, // الإخفاء عند التبعيد
+        'minzoom': MIN_VISIBLE_ZOOM,
         'layout': { 'line-cap': 'round', 'line-join': 'round' },
-        'paint': { 'line-color': '#4285f4', 'line-width': 4, 'line-opacity': 0.8 } // لون قلب المسار هادئ
+        'paint': { 'line-color': '#4285f4', 'line-width': 4, 'line-opacity': 0.8 }
     });
 
     // =========================================================
-    // 🚗 إعداد السيارة (HTML Marker)
+    // 🚗 إعداد السيارة المباشر (ضمان 100%)
     // =========================================================
     const carElement = document.createElement('div');
-        // ضفنا كلاس الـ CSS اللي يحتوي على الـ Base64
-    carElement.classList.add('car-marker', 'car-icon-base64');
+    carElement.className = 'car-marker';
     
     Object.assign(carElement.style, {
         width: CAR_SIZE_PX + 'px',
         height: CAR_SIZE_PX + 'px',
+        backgroundImage: "url('car-icon.png')", // تأكد أن صورة car-icon.png موجودة بنفس مجلد المشروع
+        backgroundSize: 'contain',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
         imageRendering: 'crisp-edges', 
         willChange: 'transform, opacity',
         transition: 'opacity 0.2s ease-in-out' 
     });
-
 
     const pulseElement = document.createElement('div');
     Object.assign(pulseElement.style, {
@@ -151,7 +150,7 @@ map.on('load', () => {
         width: '50px',
         height: '50px',
         borderRadius: '50%',
-        backgroundColor: 'rgba(66, 133, 244, 0.3)', // لون النبض أهدأ
+        backgroundColor: 'rgba(66, 133, 244, 0.3)',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
@@ -186,24 +185,23 @@ map.on('load', () => {
     .setLngLat(ROUTE_COORDS[0])
     .addTo(map);
 
-    // مراقبة التقريب والتبعيد لإخفاء/إظهار السيارة
     map.on('zoom', () => {
         if (map.getZoom() < MIN_VISIBLE_ZOOM) {
-            carElement.style.opacity = '0'; // إخفاء السيارة
+            carElement.style.opacity = '0'; 
         } else {
-            carElement.style.opacity = '1'; // إظهار السيارة
+            carElement.style.opacity = '1'; 
         }
     });
 
     // =========================================================
-    // 🎯 محرك الحركة (Polyline Sampling)
+    // 🎯 محرك الحركة
     // =========================================================
     const DENSE_POINTS = densifyLine(ROUTE_COORDS, 3);
     let currentIndex = 0;
     let lastTimestamp = 0;
     let segmentProgress = 0;
     let currentBearing = 0;
-    const SPEED_MPS = 12; // السرعة
+    const SPEED_MPS = 12; 
 
     function animateCar(timestamp) {
         if (lastTimestamp === 0) lastTimestamp = timestamp;
