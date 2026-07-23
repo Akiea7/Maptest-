@@ -21,7 +21,7 @@ let animationFrameId = null;
 
 const map = new maplibregl.Map({
     container: 'map',
-    style: 'alak-style.json?v=3',
+    style: 'https://akiea7.github.io/Maptest-/alak-style.json', // 👈 رجعنا الرابط الكامل والأكيد مالتك
     center: ROUTE_COORDS[0], 
     zoom: 16.5,
     bearing: 45, 
@@ -42,7 +42,7 @@ function updateUI(speed, progress, remainingDistance) {
     document.getElementById('progress-bar').style.width = (progress * 100) + '%';
 }
 
-// دالة الإيقاف المؤقت (مربوطة بالزر في الـ HTML)
+// دالة الإيقاف المؤقت (مربوطة بالزر)
 window.toggleAnimation = function() {
     isAnimationPaused = !isAnimationPaused;
     const btn = document.getElementById('pause-btn');
@@ -57,12 +57,20 @@ window.toggleAnimation = function() {
     }
 };
 
+// 💡 حماية إضافية لإخفاء شاشة التحميل مهما صار
+function hideLoadingScreen() {
+    const loader = document.getElementById('loading-screen');
+    if(loader) {
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 500);
+    }
+}
+// إخفاء إجباري بعد 3 ثواني حتى لو النت ضعيف
+setTimeout(hideLoadingScreen, 3000);
+
 map.on('load', () => {
-    // إخفاء شاشة التحميل
-    setTimeout(() => {
-        document.getElementById('loading-screen').style.opacity = '0';
-        setTimeout(() => document.getElementById('loading-screen').remove(), 500);
-    }, 800);
+    
+    hideLoadingScreen(); // الإخفاء الطبيعي عند نجاح التحميل
 
     // 1. تحميل طبقة الأماكن
     if (typeof alakPlaces !== 'undefined') {
@@ -91,7 +99,6 @@ map.on('load', () => {
             map.addImage('car-top-view', image);
             finalIconId = 'car-top-view';
         } else {
-            // أيقونة احتياطية إذا ما لگى الصورة
             const img = new Image(50, 50);
             img.onload = () => {
                 map.addImage('car-top-view-fallback', img);
@@ -104,7 +111,6 @@ map.on('load', () => {
     });
 
     function startAnimation(iconId) {
-        // إعداد Turf.js
         const lineString = turf.lineString(ROUTE_COORDS);
         const totalDistance = turf.length(lineString, { units: 'kilometers' });
         let currentDistance = 0;
@@ -147,12 +153,11 @@ map.on('load', () => {
                 currentDistance += distanceStep;
 
                 if (currentDistance >= totalDistance) {
-                    currentDistance = 0; // إعادة الرحلة
+                    currentDistance = 0; 
                 }
 
                 const currentPoint = turf.along(lineString, currentDistance, { units: 'kilometers' });
                 
-                // حساب الاتجاه بدقة عالية
                 const lookAhead = Math.min(currentDistance + 0.05, totalDistance);
                 const nextPoint = turf.along(lineString, lookAhead, { units: 'kilometers' });
                 
@@ -165,7 +170,6 @@ map.on('load', () => {
                     geometry: currentPoint.geometry
                 });
 
-                // تحديث الـ UI
                 const remaining = totalDistance - currentDistance;
                 const progress = currentDistance / totalDistance;
                 const realisticSpeed = SIMULATION_SPEED_KMH + (Math.sin(timestamp / 500) * 2); 
