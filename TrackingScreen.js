@@ -1,9 +1,8 @@
 // =========================================================
-// 🛠️ لوحة تحكم السيارة - النسخة الاحترافية (Polyline Sampling)
+// 🛠️ لوحة تحكم السيارة - النسخة النهائية (HTML Marker)
 // =========================================================
-const CAR_SIZE = 0.05;
-// السيارة PNG موجهة للأعلى (الشمال) → لا نحتاج أي إزاحة
-const CAR_ANGLE_OFFSET = 0;
+const CAR_SIZE_PX = 40; // حجم السيارة بالبكسل
+const CAR_ANGLE_OFFSET = 0; // السيارة PNG موجهة للأعلى
 // =========================================================
 
 maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
@@ -36,10 +35,10 @@ if (centerMarker) {
 let animationFrameId = null;
 
 // =========================================================
-// 🧮 دوال حساب المسافة والزاوية (نفس منطق Turf.js)
+// 🧮 دوال حساب المسافة والزاوية
 // =========================================================
 function haversineDistance(a, b) {
-    const R = 6371000; // نصف قطر الأرض بالمتر
+    const R = 6371000;
     const dLat = (b[1] - a[1]) * Math.PI / 180;
     const dLon = (b[0] - a[0]) * Math.PI / 180;
     const lat1 = a[1] * Math.PI / 180;
@@ -49,7 +48,6 @@ function haversineDistance(a, b) {
     return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// Bearing حقيقي 100% (نفس معادلة Turf)
 function trueBearing(a, b) {
     const lon1 = a[0] * Math.PI / 180;
     const lat1 = a[1] * Math.PI / 180;
@@ -61,9 +59,6 @@ function trueBearing(a, b) {
     return Math.atan2(x, y) * 180 / Math.PI;
 }
 
-// =========================================================
-// 🧵 Polyline Sampling: تقسيم المسار لنقاط كل N متر
-// =========================================================
 function densifyLine(coords, stepMeters = 3) {
     const result = [coords[0]];
     for (let i = 0; i < coords.length - 1; i++) {
@@ -78,23 +73,12 @@ function densifyLine(coords, stepMeters = 3) {
             ]);
         }
     }
-    // إزالة النقاط المكررة المتتالية
     return result.filter((p, i, arr) =>
         i === 0 || p[0] !== arr[i - 1][0] || p[1] !== arr[i - 1][1]
     );
 }
 
 map.on('load', () => {
-
-    // 🌟 السحر هنا: إخفاء شاشة التحميل بعد تحميل الخريطة
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-        setTimeout(() => {
-            loadingScreen.style.opacity = '0';
-            setTimeout(() => loadingScreen.remove(), 500);
-        }, 300);
-    }
-
     // 1. تحميل طبقة الأماكن
     if (typeof alakPlaces !== 'undefined') {
         let safeMapFont = ['Noto Sans Regular'];
@@ -127,167 +111,150 @@ map.on('load', () => {
         });
     }
 
-    // 2. تحميل المسار والسيارة
-    map.loadImage('car-icon.png', (error, image) => {
-        let finalIconId = 'car_11';
-        if (!error && image) {
-            if (map.hasImage('car-top-view')) map.removeImage('car-top-view');
-            map.addImage('car-top-view', image);
-            finalIconId = 'car-top-view';
+    // 2. تحميل المسار
+    map.addSource('routeSource', {
+        'type': 'geojson',
+        'data': {
+            'type': 'Feature',
+            'properties': {},
+            'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS }
+        }
+    });
+    map.addLayer({
+        'id': 'routeCasing', 'type': 'line', 'source': 'routeSource',
+        'layout': { 'line-cap': 'round', 'line-join': 'round' },
+        'paint': { 'line-color': '#1e3a5f', 'line-width': 10, 'line-opacity': 0.8 }
+    });
+    map.addLayer({
+        'id': 'routeCore', 'type': 'line', 'source': 'routeSource',
+        'layout': { 'line-cap': 'round', 'line-join': 'round' },
+        'paint': { 'line-color': '#0088FF', 'line-width': 5 }
+    });
+
+    // =========================================================
+    // 🚗 HTML Marker - الحل الجذري للمشكلة
+    // =========================================================
+    
+    // إنشاء عنصر HTML للسيارة
+    const carElement = document.createElement('div');
+    carElement.style.width = CAR_SIZE_PX + 'px';
+    carElement.style.height = CAR_SIZE_PX + 'px';
+    carElement.style.backgroundImage = "url('car-icon.png')";
+    carElement.style.backgroundSize = 'contain';
+    carElement.style.backgroundRepeat = 'no-repeat';
+    carElement.style.backgroundPosition = 'center';
+    // 🔑 السر في السلاسة: تفويض الحركة لـ GPU
+    carElement.style.willChange = 'transform';
+    carElement.style.transition = 'transform 0.1s linear';
+
+    // إنشاء نبض حول السيارة (اختياري)
+    const pulseElement = document.createElement('div');
+    pulseElement.style.position = 'absolute';
+    pulseElement.style.width = '60px';
+    pulseElement.style.height = '60px';
+    pulseElement.style.borderRadius = '50%';
+    pulseElement.style.backgroundColor = 'rgba(0, 136, 255, 0.2)';
+    pulseElement.style.top = '50%';
+    pulseElement.style.left = '50%';
+    pulseElement.style.transform = 'translate(-50%, -50%)';
+    pulseElement.style.animation = 'pulse-animation 2s infinite';
+    carElement.appendChild(pulseElement);
+
+    // إضافة CSS للنبض
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse-animation {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.6; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.2; }
+            100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.6; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    const carMarker = new maplibregl.Marker({
+        element: carElement,
+        rotationAlignment: 'map'
+    })
+    .setLngLat(ROUTE_COORDS[0])
+    .addTo(map);
+
+    // =========================================================
+    // 🎯 Polyline Sampling
+    // =========================================================
+    const DENSE_POINTS = densifyLine(ROUTE_COORDS, 3);
+
+    // =========================================================
+    // 🏎️ محرك الحركة المحسّن
+    // =========================================================
+    let currentIndex = 0;
+    let lastTimestamp = 0;
+    let segmentProgress = 0;
+    let currentBearing = 0;
+
+    const SPEED_MPS = 12;
+
+    function animateCar(timestamp) {
+        if (lastTimestamp === 0) lastTimestamp = timestamp;
+        const deltaTime = timestamp - lastTimestamp;
+        lastTimestamp = timestamp;
+        const safeDelta = Math.min(deltaTime, 50) / 1000;
+
+        if (currentIndex >= DENSE_POINTS.length - 1) {
+            currentIndex = 0;
+            segmentProgress = 0;
+            lastTimestamp = timestamp;
+            animationFrameId = requestAnimationFrame(animateCar);
+            return;
         }
 
-        map.addSource('routeSource', {
-            'type': 'geojson',
-            'data': {
-                'type': 'Feature',
-                'properties': {},
-                'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS }
-            }
-        });
-        map.addLayer({
-            'id': 'routeCasing', 'type': 'line', 'source': 'routeSource',
-            'layout': { 'line-cap': 'round', 'line-join': 'round' },
-            'paint': { 'line-color': '#1e3a5f', 'line-width': 10, 'line-opacity': 0.8 }
-        });
-        map.addLayer({
-            'id': 'routeCore', 'type': 'line', 'source': 'routeSource',
-            'layout': { 'line-cap': 'round', 'line-join': 'round' },
-            'paint': { 'line-color': '#0088FF', 'line-width': 5 }
-        });
+        let current = DENSE_POINTS[currentIndex];
+        let next = DENSE_POINTS[currentIndex + 1];
+        let segmentDistance = haversineDistance(current, next);
 
-        // =========================================================
-        // 🚗 إعداد مصدر السيارة
-        // =========================================================
-        const captainFeature = {
-            type: 'Feature',
-            properties: { bearing: 0, pulseRadius: 22 },
-            geometry: { type: 'Point', coordinates: [...ROUTE_COORDS[0]] }
-        };
+        if (segmentDistance < 0.1) {
+            currentIndex++;
+            animationFrameId = requestAnimationFrame(animateCar);
+            return;
+        }
 
-        map.addSource('captainSource', { 'type': 'geojson', 'data': captainFeature });
+        segmentProgress += (safeDelta * SPEED_MPS) / segmentDistance;
 
-        map.addLayer({
-            'id': 'captainPulse', 'type': 'circle', 'source': 'captainSource',
-            'paint': {
-                'circle-radius': ['get', 'pulseRadius'],
-                'circle-color': '#0088FF',
-                'circle-opacity': 0.2,
-                'circle-pitch-alignment': 'map'
-            }
-        });
-
-        map.addLayer({
-            'id': 'captainIcon',
-            'type': 'symbol',
-            'source': 'captainSource',
-            'layout': {
-                'icon-image': finalIconId,
-                'icon-size': finalIconId === 'car-top-view' ? CAR_SIZE : 1.5,
-                'icon-pitch-alignment': 'map',
-                'icon-rotation-alignment': 'map',
-                'icon-rotate': ['get', 'bearing'],
-                'icon-allow-overlap': true,
-                'icon-ignore-placement': true
-            }
-        });
-
-        // =========================================================
-        // 🎯 Polyline Sampling: تحويل المسار لنقاط كثيفة كل 3 أمتار
-        // =========================================================
-        const DENSE_POINTS = densifyLine(ROUTE_COORDS, 3); // كل 3 أمتار نقطة
-
-        // =========================================================
-        // 🏎️ محرك الحركة الاحترافي
-        // =========================================================
-        let currentIndex = 0;
-        let lastTimestamp = 0;
-        let segmentProgress = 0;
-
-        // 🎛️ السرعة الفعلية بالمتر/ثانية
-        // 12 م/ث = 43 كم/س  |  8 م/ث = 29 كم/س  |  15 م/ث = 54 كم/س
-        const SPEED_MPS = 12;
-
-                // =========================================================
-        // 🏎️ محرك الحركة (نسخة محسنة الأداء - لا تسبب كراش)
-        // =========================================================
-        let currentIndex = 0;
-        let lastTimestamp = 0;
-        let segmentProgress = 0;
-        let lastDrawTime = 0; // متغير جديد للتحكم بسرعة التحديث
-
-        const SPEED_MPS = 12;
-        const FPS_LIMIT = 30; // تحديد التحديث بـ 30 إطار بالثانية لحماية المتصفح
-        const FRAME_INTERVAL = 1000 / FPS_LIMIT; 
-
-        function animateCar(timestamp) {
-            if (!map.getSource('captainSource')) return;
-
-            if (lastTimestamp === 0) lastTimestamp = timestamp;
-            const deltaTime = timestamp - lastTimestamp;
-            lastTimestamp = timestamp;
-            const safeDelta = Math.min(deltaTime, 50) / 1000;
+        if (segmentProgress >= 1) {
+            const overflow = segmentProgress - 1;
+            currentIndex++;
 
             if (currentIndex >= DENSE_POINTS.length - 1) {
                 currentIndex = 0;
                 segmentProgress = 0;
-                animationFrameId = requestAnimationFrame(animateCar);
-                return;
+                lastTimestamp = timestamp;
+            } else {
+                current = DENSE_POINTS[currentIndex];
+                next = DENSE_POINTS[currentIndex + 1];
+                segmentDistance = haversineDistance(current, next);
+                segmentProgress = (overflow * SPEED_MPS) / segmentDistance;
             }
-
-            let current = DENSE_POINTS[currentIndex];
-            let next = DENSE_POINTS[currentIndex + 1];
-            let segmentDistance = haversineDistance(current, next);
-
-            if (segmentDistance < 0.1) {
-                currentIndex++;
-                animationFrameId = requestAnimationFrame(animateCar);
-                return;
-            }
-
-            segmentProgress += (safeDelta * SPEED_MPS) / segmentDistance;
-
-            if (segmentProgress >= 1) {
-                const overflow = segmentProgress - 1;
-                currentIndex++;
-
-                if (currentIndex >= DENSE_POINTS.length - 1) {
-                    currentIndex = 0;
-                    segmentProgress = 0;
-                } else {
-                    current = DENSE_POINTS[currentIndex];
-                    next = DENSE_POINTS[currentIndex + 1];
-                    segmentDistance = haversineDistance(current, next);
-                    segmentProgress = (overflow * SPEED_MPS) / segmentDistance;
-                }
-            }
-
-            // تحديث موقع السيارة على الشاشة فقط إذا مر الوقت الكافي (حسب الـ FPS_LIMIT)
-            if (timestamp - lastDrawTime >= FRAME_INTERVAL) {
-                const lng = current[0] + (next[0] - current[0]) * segmentProgress;
-                const lat = current[1] + (next[1] - current[1]) * segmentProgress;
-
-                const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
-
-                let currentBearing = captainFeature.properties.bearing;
-                let diff = targetBearing - currentBearing;
-                while (diff > 180) diff -= 360;
-                while (diff < -180) diff += 360;
-                const smoothBearing = currentBearing + diff * 0.3;
-
-                captainFeature.geometry.coordinates = [lng, lat];
-                captainFeature.properties.bearing = smoothBearing;
-                // ثبتنا الحجم حتى لا يصير Overload على المتصفح
-                captainFeature.properties.pulseRadius = 22; 
-
-                map.getSource('captainSource').setData(captainFeature);
-                lastDrawTime = timestamp;
-            }
-
-            animationFrameId = requestAnimationFrame(animateCar);
         }
 
-        animationFrameId = requestAnimationFrame(animateCar);
+        const lng = current[0] + (next[0] - current[0]) * segmentProgress;
+        const lat = current[1] + (next[1] - current[1]) * segmentProgress;
 
+        const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
+
+        // تنعيم الدوران
+        let diff = targetBearing - currentBearing;
+        while (diff > 180) diff -= 360;
+        while (diff < -180) diff += 360;
+        currentBearing += diff * 0.3;
+
+        // 🔑 تحديث HTML Marker (سريع جداً، لا يمر عبر WebGL)
+        carMarker.setLngLat([lng, lat]);
+        carMarker.setRotation(currentBearing);
+
+        animationFrameId = requestAnimationFrame(animateCar);
+    }
+
+    animationFrameId = requestAnimationFrame(animateCar);
+});
 
 function stopCarAnimation() {
     if (animationFrameId) {
