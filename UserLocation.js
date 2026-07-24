@@ -1,164 +1,169 @@
 // =========================================================
-// 📍 ملف UserLocation.js - تحديد الموقع وتتبعه باحترافية
+// 📍 UserLocation.js - النسخة النهائية الثابتة
 // =========================================================
 
 let userCurrentMarker = null;
-let isFollowingUser = false; // هل يجب أن تتابع الخريطة المستخدم أم لا؟
 let watchId = null;
+let isFirstLocation = true;
 
 function initUserLocation(map) {
-    // 1. إذا قام المستخدم بسحب الخريطة، نلغي وضع "المتابعة التلقائية"
-    map.on('dragstart', () => {
-        isFollowingUser = false;
-    });
-
     if ("geolocation" in navigator) {
-        // إيقاف أي تتبع سابق لتجنب التكرار واستهلاك البطارية
+        // إيقاف أي تتبع سابق
         if (watchId) navigator.geolocation.clearWatch(watchId);
         
         watchId = navigator.geolocation.watchPosition(
             (position) => {
-                const userLocation = [position.coords.longitude, position.coords.latitude];
-                const accuracy = position.coords.accuracy; // دقة الموقع بالمتر
+                const userLocation = [
+                    position.coords.longitude, 
+                    position.coords.latitude
+                ];
+                const accuracy = position.coords.accuracy;
 
                 if (!userCurrentMarker) {
-                    createCustomUserMarker(userLocation, accuracy, map);
+                    // إنشاء النقطة لأول مرة
+                    createUserLocationMarker(userLocation, accuracy, map);
                     
-                    // فقط في أول مرة: نقوم بتوسيط الخريطة على المستخدم بسلاسة
-                    map.flyTo({ 
-                        center: userLocation, 
-                        zoom: 16, 
-                        speed: 1.2,
-                        essential: true 
-                    });
-                    isFollowingUser = true;
+                    // ✅ توسيط الخريطة فقط في أول مرة
+                    if (isFirstLocation) {
+                        map.jumpTo({ 
+                            center: userLocation, 
+                            zoom: 16 
+                        });
+                        isFirstLocation = false;
+                    }
                 } else {
-                    // ✅ الحل السحري: تحديث موقع النقطة فقط WITHOUT تحريك الخريطة
-                    // هذا يضمن بقاء النقطة ثابتة جغرافياً حتى لو حرك المستخدم الخريطة
+                    // ✅ تحديث موقع النقطة فقط - بدون تحريك الخريطة نهائياً!
                     userCurrentMarker.setLngLat(userLocation);
                     
-                    // (اختياري) تحديث دائرة الدقة إذا أردت إضافتها لاحقاً
+                    // تحديث حجم دائرة الدقة إذا تغيرت
+                    const accuracyCircle = userCurrentMarker.getElement().querySelector('.accuracy-circle');
+                    if (accuracyCircle) {
+                        const size = Math.min(accuracy * 2, 200);
+                        accuracyCircle.style.width = `${size}px`;
+                        accuracyCircle.style.height = `${size}px`;
+                    }
                 }
             },
             (error) => {
-                console.error("خطأ في تحديد الموقع: ", error.message);
-                let msg = "تعذر تحديد الموقع.";
-                if (error.code === 1) msg = "يرجى السماح بالوصول للموقع من إعدادات المتصفح.";
-                if (error.code === 2) msg = "الموقع غير متاح حالياً.";
-                if (error.code === 3) msg = "انتهت مهلة تحديد الموقع.";
-                alert(msg);
+                console.error("GPS Error:", error);
             },
             {
-                enableHighAccuracy: true, // طلب أعلى دقة ممكنة (GPS)
-                timeout: 15000,           // مهلة أطول قليلاً للأجهزة البطيئة
-                maximumAge: 0             // عدم استخدام موقع مخزن قديم
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
             }
         );
     } else {
-        alert("عذراً، متصفحك لا يدعم خدمة تحديد الموقع الجغرافي.");
+        alert("متصفحك لا يدعم تحديد الموقع");
     }
 }
 
-// دالة إنشاء النقطة المخصصة (مطوّرة ومُحسّنة)
-function createCustomUserMarker(location, accuracy, map) {
-    const userMarkerElement = document.createElement('div');
-    userMarkerElement.className = 'user-location-marker';
+function createUserLocationMarker(location, accuracy, map) {
+    const el = document.createElement('div');
+    el.className = 'user-location-wrapper';
     
-    // الحاوية الرئيسية بحجم صفر لضمان أن المركز هو النقطة الزرقاء تماماً
-    Object.assign(userMarkerElement.style, {
+    // الحاوية بحجم صفر - المركز هو النقطة بالضبط
+    Object.assign(el.style, {
         position: 'relative',
-        width: '0px',
-        height: '0px',
-        zIndex: '100' // التأكد من ظهورها فوق كل العناصر
+        width: '0',
+        height: '0',
+        zIndex: '100'
     });
 
-    // 1. دائرة دقة الموقع (Accuracy Circle) - تعطي مظهراً احترافياً مثل Google Maps
+    // 1. دائرة الدقة (Accuracy Circle)
     const accuracyCircle = document.createElement('div');
+    accuracyCircle.className = 'accuracy-circle';
     Object.assign(accuracyCircle.style, {
         position: 'absolute',
-        top: '0', left: '0',
+        top: '0',
+        left: '0',
         transform: 'translate(-50%, -50%)',
-        width: `${accuracy * 2}px`, // حجم الدائرة بناءً على دقة الـ GPS
-        maxWidth: '200px', // حد أقصى حتى لا تغطي الشاشة
-        height: `${accuracy * 2}px`,
-        maxHeight: '200px',
+        width: `${Math.min(accuracy * 2, 200)}px`,
+        height: `${Math.min(accuracy * 2, 200)}px`,
         backgroundColor: 'rgba(66, 133, 244, 0.15)',
         border: '1px solid rgba(66, 133, 244, 0.3)',
         borderRadius: '50%',
         pointerEvents: 'none',
-        transition: 'all 0.5s ease-out' // تنعيم عند تغير حجم الدقة
+        transition: 'width 0.3s, height 0.3s'
     });
 
-    // 2. الموجة النبضية (Radar Pulse)
-    const wave = document.createElement('div');
-    Object.assign(wave.style, {
-        position: 'absolute', top: '0', left: '0',
+    // 2. الموجة النبضية
+    const pulse = document.createElement('div');
+    Object.assign(pulse.style, {
+        position: 'absolute',
+        top: '0',
+        left: '0',
         transform: 'translate(-50%, -50%)',
-        width: '60px', height: '60px',
+        width: '60px',
+        height: '60px',
         backgroundColor: 'rgba(66, 133, 244, 0.2)',
         borderRadius: '50%',
-        animation: 'radar-pulse 2s infinite ease-out',
+        animation: 'user-pulse 2s infinite ease-out',
         pointerEvents: 'none'
     });
 
-    // 3. النقطة الزرقاء المركزية (Core Dot)
-    const coreDot = document.createElement('div');
-    Object.assign(coreDot.style, {
-        position: 'absolute', top: '0', left: '0',
+    // 3. النقطة الزرقاء المركزية
+    const dot = document.createElement('div');
+    Object.assign(dot.style, {
+        position: 'absolute',
+        top: '0',
+        left: '0',
         transform: 'translate(-50%, -50%)',
-        width: '18px', height: '18px',
+        width: '16px',
+        height: '16px',
         backgroundColor: '#4285F4',
         borderRadius: '50%',
-        border: '3px solid #ffffff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        border: '3px solid white',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
         zIndex: '10'
     });
 
-    userMarkerElement.appendChild(accuracyCircle);
-    userMarkerElement.appendChild(wave);
-    userMarkerElement.appendChild(coreDot);
+    el.appendChild(accuracyCircle);
+    el.appendChild(pulse);
+    el.appendChild(dot);
 
-    // إضافة الـ CSS الخاص بالحركة مرة واحدة فقط
-    if (!document.getElementById('user-location-style')) {
+    // إضافة CSS
+    if (!document.getElementById('user-location-css')) {
         const style = document.createElement('style');
-        style.id = 'user-location-style';
+        style.id = 'user-location-css';
         style.textContent = `
-            @keyframes radar-pulse {
-                0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.6; }
+            @keyframes user-pulse {
+                0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.8; }
                 100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
             }
         `;
         document.head.appendChild(style);
     }
 
-    userCurrentMarker = new maplibregl.Marker({ 
-        element: userMarkerElement,
-        anchor: 'center' // التثبيت من المركز بالضبط
+    // إنشاء Marker
+    userCurrentMarker = new maplibregl.Marker({
+        element: el,
+        anchor: 'center'
     })
     .setLngLat(location)
     .addTo(map);
 }
 
 // =========================================================
-// 🎯 دالة زر "موقعي الحالي"
+//  زر "موقعي" - يعيد الخريطة لموقع المستخدم
 // =========================================================
 function goToMyLocation(map) {
     if (userCurrentMarker) {
-        isFollowingUser = true; // إعادة تفعيل المتابعة
-        map.flyTo({ 
-            center: userCurrentMarker.getLngLat(), 
-            zoom: 16.5, 
-            speed: 1.5,
+        const loc = userCurrentMarker.getLngLat();
+        map.flyTo({
+            center: [loc.lng, loc.lat],
+            zoom: 16.5,
+            speed: 1.2,
             essential: true
         });
     } else {
-        // إذا لم تكن النقطة موجودة، ابدأ عملية التحديد
+        // إذا لم يكن هناك marker، ابدأ التحديد
         initUserLocation(map);
     }
 }
 
 // =========================================================
-// 🧹 دالة تنظيف (مهمة جداً عند مغادرة الصفحة لتجنب استهلاك البطارية)
+// 🧹 تنظيف عند الحاجة
 // =========================================================
 function stopUserLocationTracking() {
     if (watchId) {
@@ -169,4 +174,5 @@ function stopUserLocationTracking() {
         userCurrentMarker.remove();
         userCurrentMarker = null;
     }
+    isFirstLocation = true;
 }
