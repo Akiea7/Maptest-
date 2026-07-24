@@ -82,6 +82,11 @@ async function getRealRoute(start, end) {
 }
 
 map.on('load', async () => {
+    
+    // تشغيل الـ GPS وجلب موقع المستخدم
+    initUserLocation(map);
+
+
     // 1. إضافة مصادر فارغة للمسار (راح نمليها بعدين من السيرفر)
     map.addSource('routeSource', {
         'type': 'geojson',
