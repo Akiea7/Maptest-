@@ -1,14 +1,15 @@
 // =========================================================
-// 📍 UserLocation.js - النقطة الزرقاء لموقع GPS فقط
+// 📍 UserLocation.js - النسخة النهائية (بدون تحريك الخريطة)
 // =========================================================
 
-let userGPSMarker = null;
+let userLocationMarker = null;
 let watchId = null;
-let userGPSLocation = null; // تخزين موقع GPS الحقيقي
+let lastValidLocation = null;
+let hasSetInitialPosition = false;
 
 function initUserLocation(map) {
     if (!("geolocation" in navigator)) {
-        console.warn("⚠️ المتصفح لا يدعم تحديد الموقع");
+        console.warn("️ المتصفح لا يدعم تحديد الموقع");
         return;
     }
 
@@ -17,72 +18,96 @@ function initUserLocation(map) {
         navigator.geolocation.clearWatch(watchId);
     }
 
-    // إزالة أي marker سابق
-    if (userGPSMarker) {
-        userGPSMarker.remove();
-        userGPSMarker = null;
+    // إزالة marker سابق إن وجد
+    if (userLocationMarker) {
+        userLocationMarker.remove();
+        userLocationMarker = null;
     }
 
-    console.log("🔄 جاري الحصول على موقع GPS...");
+    console.log("🔍 جاري البحث عن موقعك...");
 
-    // ✅ الخطوة 1: الحصول على الموقع الدقيق مرة واحدة
+    // ✅ الحصول على الموقع مرة واحدة
     navigator.geolocation.getCurrentPosition(
         (position) => {
             const lng = position.coords.longitude;
             const lat = position.coords.latitude;
             const accuracy = position.coords.accuracy;
 
-            userGPSLocation = [lng, lat];
+            console.log("✅ تم الحصول على الموقع:", { lng, lat, accuracy: accuracy + "م" });
 
-            console.log("✅ تم الحصول على الموقع:", { lng, lat, accuracy });
+            const userLocation = [lng, lat];
+            lastValidLocation = userLocation;
 
-            // إنشاء النقطة الزرقاء في موقع GPS
-            createGPSMarker([lng, lat], accuracy, map);
+            // إنشاء النقطة الزرقاء
+            createUserLocationMarker(userLocation, accuracy);
 
-            // ⚠️ مهم جداً: لا تحرك الخريطة هنا!
-            // اترك الخريطة كما هي، المستخدم هو الذي يتحكم بها
-            // الدبوس في الوسط ثابت، والنقطة الزرقاء ستظهر في موقعك
+            // ✅ توسيط الخريطة فقط في أول مرة يتم فيها تحديد الموقع
+            // ولأول مرة فقط - بعدها المستخدم يتحكم بالخريطة
+            if (!hasSetInitialPosition) {
+                setTimeout(() => {
+                    map.jumpTo({
+                        center: userLocation,
+                        zoom: 16
+                    });
+                    hasSetInitialPosition = true;
+                    console.log("📍 تم توسيط الخريطة على موقعك لأول مرة");
+                }, 500);
+            }
         },
         (error) => {
-            console.error("❌ خطأ في GPS:", error.message);
+            console.error(" خطأ في GPS:", error.message);
             
-            let errorMsg = "تعذر تحديد موقعك.";
-            if (error.code === 1) {
-                errorMsg = "يرجى السماح بالوصول للموقع من إعدادات المتصفح";
-            } else if (error.code === 2) {
-                errorMsg = "خدمة الموقع غير متاحة";
-            } else if (error.code === 3) {
-                errorMsg = "انتهت مهلة تحديد الموقع";
+            let errorMsg = "تعذر تحديد موقعك";
+            switch(error.code) {
+                case 1: errorMsg = "يرجى السماح بالوصول للموقع من إعدادات المتصفح"; break;
+                case 2: errorMsg = "الموقع غير متاح حالياً"; break;
+                case 3: errorMsg = "انتهت مهلة تحديد الموقع"; break;
             }
-            
-            alert(errorMsg);
+            console.warn("⚠️", errorMsg);
         },
         {
-            enableHighAccuracy: true,  // استخدام GPS
-            timeout: 15000,             // انتظار 15 ثانية
-            maximumAge: 0               // عدم استخدام موقع مخزن
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
         }
     );
 
-    // ✅ الخطوة 2: مراقبة التحديثات المستمرة
+    // ✅ مراقبة التحديثات المستمرة - بدون تحريك الخريطة نهائياً!
     watchId = navigator.geolocation.watchPosition(
         (position) => {
             const lng = position.coords.longitude;
             const lat = position.coords.latitude;
             const accuracy = position.coords.accuracy;
 
-            userGPSLocation = [lng, lat];
-
-            console.log("📍 تحديث GPS:", { lng, lat, accuracy });
-
-            // تحديث موقع النقطة الزرقاء فقط
-            if (userGPSMarker) {
-                userGPSMarker.setLngLat([lng, lat]);
-                updateGPSCircle(accuracy);
+            // فلتر: تجاهل التحديثات غير الدقيقة
+            if (accuracy > 100) {
+                console.log("️ تجاهل تحديث - دقة منخفضة:", accuracy + "م");
+                return;
             }
+
+            const newLocation = [lng, lat];
+
+            // فلتر: تجاهل القفزات الكبيرة غير المنطقية
+            if (lastValidLocation) {
+                const distance = calculateDistance(lastValidLocation, newLocation);
+                if (distance > 200) { // أكثر من 200 متر في تحديث واحد
+                    console.log("️ تجاهل قفزة كبيرة:", distance + "م");
+                    return;
+                }
+            }
+
+            console.log("🔄 تحديث الموقع:", newLocation, "الدقة:", accuracy + "م");
+
+            // ✅ تحديث موقع النقطة الزرقاء فقط - بدون تحريك الخريطة!
+            if (userLocationMarker) {
+                userLocationMarker.setLngLat(newLocation);
+                updateAccuracyCircle(accuracy);
+            }
+
+            lastValidLocation = newLocation;
         },
         (error) => {
-            console.error("❌ خطأ في التتبع:", error);
+            console.error("❌ خطأ في التتبع المستمر:", error);
         },
         {
             enableHighAccuracy: true,
@@ -92,22 +117,22 @@ function initUserLocation(map) {
     );
 }
 
-function createGPSMarker(location, accuracy, map) {
+function createUserLocationMarker(location, accuracy) {
     const el = document.createElement('div');
-    el.className = 'gps-location-dot';
+    el.className = 'user-gps-location';
     
-    // الحاوية بحجم صفر - المركز هو النقطة بالضبط
     Object.assign(el.style, {
         position: 'relative',
         width: '0px',
         height: '0px',
-        zIndex: '999' // أقل من الدبوس (1000)
+        zIndex: '1000',
+        pointerEvents: 'none' // حتى لا يمنع التفاعل مع الخريطة
     });
 
     // 1. دائرة الدقة (Accuracy Circle)
     const accuracyCircle = document.createElement('div');
     accuracyCircle.className = 'gps-accuracy-circle';
-    const circleSize = Math.min(accuracy * 2, 200);
+    const circleSize = Math.min(accuracy * 2, 150);
     Object.assign(accuracyCircle.style, {
         position: 'absolute',
         top: '0',
@@ -119,10 +144,25 @@ function createGPSMarker(location, accuracy, map) {
         borderRadius: '50%',
         transform: 'translate(-50%, -50%)',
         pointerEvents: 'none',
-        transition: 'all 0.3s ease'
+        transition: 'all 0.5s ease'
     });
 
-    // 2. النقطة الزرقاء المركزية
+    // 2. الموجة النبضية
+    const pulse = document.createElement('div');
+    Object.assign(pulse.style, {
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        width: '50px',
+        height: '50px',
+        backgroundColor: 'rgba(66, 133, 244, 0.25)',
+        borderRadius: '50%',
+        transform: 'translate(-50%, -50%)',
+        animation: 'gps-pulse-animation 2s infinite ease-out',
+        pointerEvents: 'none'
+    });
+
+    // 3. النقطة الزرقاء المركزية
     const dot = document.createElement('div');
     Object.assign(dot.style, {
         position: 'absolute',
@@ -139,58 +179,91 @@ function createGPSMarker(location, accuracy, map) {
     });
 
     el.appendChild(accuracyCircle);
+    el.appendChild(pulse);
     el.appendChild(dot);
 
+    // إضافة CSS للحركة
+    if (!document.getElementById('gps-marker-styles')) {
+        const style = document.createElement('style');
+        style.id = 'gps-marker-styles';
+        style.textContent = `
+            @keyframes gps-pulse-animation {
+                0% { 
+                    transform: translate(-50%, -50%) scale(0.3); 
+                    opacity: 0.8; 
+                }
+                100% { 
+                    transform: translate(-50%, -50%) scale(1.5); 
+                    opacity: 0; 
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     // إنشاء Marker
-    userGPSMarker = new maplibregl.Marker({
+    userLocationMarker = new maplibregl.Marker({
         element: el,
         anchor: 'center'
     })
     .setLngLat(location)
-    .addTo(map);
+    .addTo(window.map); // استخدام window.map المتاح عالمياً
 
     console.log("✅ تم إنشاء النقطة الزرقاء في:", location);
 }
 
-function updateGPSCircle(accuracy) {
-    if (userGPSMarker) {
-        const circle = userGPSMarker.getElement().querySelector('.gps-accuracy-circle');
+function updateAccuracyCircle(accuracy) {
+    if (userLocationMarker) {
+        const circle = userLocationMarker.getElement().querySelector('.gps-accuracy-circle');
         if (circle) {
-            const size = Math.min(accuracy * 2, 200);
+            const size = Math.min(accuracy * 2, 150);
             circle.style.width = `${size}px`;
             circle.style.height = `${size}px`;
         }
     }
 }
 
-//  زر "موقعي الحالي" - يركز الخريطة على موقع GPS
+function calculateDistance(a, b) {
+    const R = 6371000;
+    const dLat = (b[1] - a[1]) * Math.PI / 180;
+    const dLon = (b[0] - a[0]) * Math.PI / 180;
+    const lat1 = a[1] * Math.PI / 180;
+    const lat2 = b[1] * Math.PI / 180;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// =========================================================
+// 🎯 زر "موقعي الحالي" - يعيد الخريطة لموقع المستخدم
+// =========================================================
 function goToMyLocation(map) {
-    if (userGPSLocation) {
-        console.log("🎯 الانتقال لموقع GPS:", userGPSLocation);
+    if (lastValidLocation) {
+        console.log(" العودة لموقع المستخدم");
         map.flyTo({
-            center: userGPSLocation,
+            center: lastValidLocation,
             zoom: 16.5,
             speed: 1.2,
             duration: 1000
         });
     } else {
-        console.warn("⚠️ لم يتم تحديد موقع GPS بعد");
-        // إذا لم يكن هناك موقع، حاول الحصول عليه
+        console.log("️ لا يوجد موقع محفوظ، جاري التحديد...");
         initUserLocation(map);
     }
 }
 
-// تنظيف عند إغلاق الصفحة
+// =========================================================
+// 🧹 دالة التنظيف
+// =========================================================
 function stopUserLocationTracking() {
     if (watchId) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
     }
-    if (userGPSMarker) {
-        userGPSMarker.remove();
-        userGPSMarker = null;
+    if (userLocationMarker) {
+        userLocationMarker.remove();
+        userLocationMarker = null;
     }
-    userGPSLocation = null;
+    lastValidLocation = null;
 }
 
 // تنظيف عند إغلاق الصفحة
