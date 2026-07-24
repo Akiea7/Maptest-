@@ -92,7 +92,7 @@
       "source": "openmaptiles",
       "source-layer": "park",
       "paint": {
-        "fill-color": "#e3f0e0",
+        "fill-color": "#d1e9d1",
         "fill-opacity": 0.9
       }
     },
@@ -144,7 +144,7 @@
       "source-layer": "water",
       "filter": ["!=", ["get", "brunnel"], "tunnel"],
       "paint": {
-        "fill-color": "#D6EAF8",
+        "fill-color": "#a5c9f3",
         "fill-opacity": 1
       }
     },
