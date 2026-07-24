@@ -1,57 +1,49 @@
 // =========================================================
-// 📍 ملف UserLocation.js - خاص بتحديد موقع الزبون وتتبعه المباشر (GPS)
+// 📍 ملف UserLocation.js - خاص بتحديد موقع الزبون وتتبعه المباشر
 // =========================================================
 
-// متغير عالمي لحفظ الماركر حتى نحدث موقعه بدل ما نصنع واحد جديد
 let userCurrentMarker = null;
+let isTrackingMap = true; // حالة قفل الخريطة والمؤشر على النقطة الزرقاء
+let watchId = null;
 
 function initUserLocation(map) {
-    if ("geolocation" in navigator) {
-        
-        // استخدام watchPosition لتتبع الموقع باستمرار وتحديث الإحداثيات
-        navigator.geolocation.watchPosition(
-            (position) => {
-                const userLng = position.coords.longitude;
-                const userLat = position.coords.latitude;
-                const userLocation = [userLng, userLat];
+    // 1. من يسحب المستخدم الخريطة، نفك القفل حتى يصير المؤشر المركزي "حر"
+    map.on('dragstart', () => {
+        isTrackingMap = false;
+    });
 
-                // إذا كانت هاي أول مرة نلقى بيها الموقع (الماركر بعده ماموجود)
+    if ("geolocation" in navigator) {
+        if (watchId) navigator.geolocation.clearWatch(watchId);
+        
+        watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const userLocation = [position.coords.longitude, position.coords.latitude];
+
                 if (!userCurrentMarker) {
                     
-                    // 1. تحريك الكاميرا لمكان الزبون بنعومة
-                    map.flyTo({
-                        center: userLocation,
-                        zoom: 16,
-                        speed: 1.5, 
-                        curve: 1.4, 
-                        essential: true
-                    });
-
-                    // 2. تصميم ماركر الرادار المركزي
+                    // 2. تصميم النقطة بحجم صفر حتى يكون التوسيط دقيق 100% بدون إزاحة
                     const userMarkerElement = document.createElement('div');
                     Object.assign(userMarkerElement.style, {
-                        position: 'relative',
-                        width: '20px',
-                        height: '20px'
+                        position: 'relative', width: '0px', height: '0px'
                     });
 
-                    // الموجة الأولى (الرادار الداخلي)
+                    // الموجة الداخلية
                     const wave1 = document.createElement('div');
                     Object.assign(wave1.style, {
-                        position: 'absolute', top: '50%', left: '50%',
+                        position: 'absolute', top: '0', left: '0',
                         transform: 'translate(-50%, -50%)',
                         width: '50px', height: '50px',
                         backgroundColor: 'rgba(66, 133, 244, 0.2)',
                         border: '1px solid rgba(66, 133, 244, 0.4)',
                         borderRadius: '50%',
                         animation: 'radar-pulse 2.5s infinite linear',
-                        pointerEvents: 'none'
+                        pointerEvents: 'none' // حتى لا تمنع سحب الخريطة
                     });
 
-                    // الموجة الثانية (الرادار الخارجي)
+                    // الموجة الخارجية
                     const wave2 = document.createElement('div');
                     Object.assign(wave2.style, {
-                        position: 'absolute', top: '50%', left: '50%',
+                        position: 'absolute', top: '0', left: '0',
                         transform: 'translate(-50%, -50%)',
                         width: '80px', height: '80px',
                         backgroundColor: 'rgba(66, 133, 244, 0.1)',
@@ -61,10 +53,10 @@ function initUserLocation(map) {
                         pointerEvents: 'none'
                     });
 
-                    // النقطة المركزية
+                    // النقطة الزرقاء المركزية
                     const coreDot = document.createElement('div');
                     Object.assign(coreDot.style, {
-                        position: 'absolute', top: '50%', left: '50%',
+                        position: 'absolute', top: '0', left: '0',
                         transform: 'translate(-50%, -50%)',
                         width: '20px', height: '20px',
                         backgroundColor: '#4285F4',
@@ -91,27 +83,41 @@ function initUserLocation(map) {
                         document.head.appendChild(style);
                     }
 
-                    // 3. إضافة الماركر للخريطة وحفظه بالمتغير
-                    userCurrentMarker = new maplibregl.Marker({ element: userMarkerElement, anchor: 'center' })
+                    // إضافة النقطة للخريطة
+                    userCurrentMarker = new maplibregl.Marker({ element: userMarkerElement })
                         .setLngLat(userLocation)
                         .addTo(map);
 
                 } else {
-                    // إذا الماركر موجود مسبقاً، بس نحدث إحداثياته حتى يطابق موقعك الفعلي دائماً
+                    // تحديث مكان النقطة باستمرار
                     userCurrentMarker.setLngLat(userLocation);
+                }
+
+                // 3. إذا القفل شغال (isTrackingMap)، خلي الخريطة والمؤشر يلحقون النقطة
+                if (isTrackingMap) {
+                    map.flyTo({ center: userLocation, speed: 1.2, zoom: 16 });
                 }
             },
             (error) => {
                 console.error("خطأ في تحديد الموقع: ", error.message);
-                alert("يرجى تفعيل الـ GPS والسماح بصلاحية الموقع حتى نقدر نحدد مكانك.");
             },
             {
-                enableHighAccuracy: true, // إجبار الجهاز يعطي أدق إحداثيات ممكنة
+                enableHighAccuracy: true, 
                 timeout: 10000,           
-                maximumAge: 0             // عدم استخدام موقع قديم مخزن بالذاكرة
+                maximumAge: 0             
             }
         );
     } else {
         alert("عذراً، متصفحك لا يدعم تحديد الموقع.");
+    }
+}
+
+// 4. دالة مخصصة لزر "موقعي الحالي" ترجع تقفل المؤشر على النقطة
+function goToMyLocation(map) {
+    isTrackingMap = true; // تفعيل القفل من جديد
+    if (userCurrentMarker) {
+        map.flyTo({ center: userCurrentMarker.getLngLat(), zoom: 16, speed: 1.5 });
+    } else {
+        initUserLocation(map);
     }
 }
