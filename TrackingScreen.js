@@ -1,48 +1,34 @@
 // =========================================================
-// 🛠️ الإعدادات النهائية لشاشة التتبع (Alek App) - نسخة 2D
+// 🛠️ الإعدادات (Alek App) - التوجيه الحقيقي على الشوارع
 // =========================================================
-const CAR_SIZE_PX = 50; // كبرنا السيارة
+const CAR_SIZE_PX = 48; 
 const CAR_ANGLE_OFFSET = 0; 
 const MIN_VISIBLE_ZOOM = 13.5; 
+
+// 📍 إحداثيات التجربة بالطارمية
+const DRIVER_COORD = [44.3735000, 33.6645000]; // موقع الكابتن
+const CUSTOMER_COORD = [44.3835000, 33.6692000]; // موقع الزبون
 // =========================================================
 
 maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
 
-// مسار الطارمية
-const ROUTE_COORDS = [
-    [44.3735000, 33.6645000], 
-    [44.3783246, 33.6668412], 
-    [44.3805000, 33.6678000],
-    [44.3835000, 33.6692000], 
-    [44.3842000, 33.6680000], 
-    [44.3850000, 33.6660000],
-    [44.3830000, 33.6650000], 
-    [44.3800000, 33.6635000]  
-];
-
 const map = new maplibregl.Map({
     container: 'map',
     style: 'alak-style.json?v=3',
-    center: ROUTE_COORDS[0],
-    zoom: 16.5,
-    bearing: 0, // الخريطة عدلة مو مايلة
-    pitch: 0,   // نظرة من الأعلى (2D)
-    dragPitch: false, // منع المستخدم من إمالة الخريطة (إلغاء الـ 3D)
-    pitchWithRotate: false, // منع الإمالة عند التدوير
+    center: DRIVER_COORD,
+    zoom: 15.5,
+    bearing: 0, 
+    pitch: 0,   
+    dragPitch: false, 
+    pitchWithRotate: false, 
     antialias: true,
     attributionControl: false
 });
 
-const centerMarker = document.getElementById('center-marker');
-if (centerMarker) {
-    map.on('movestart', () => centerMarker.classList.add('bounce-marker'));
-    map.on('moveend', () => centerMarker.classList.remove('bounce-marker'));
-}
-
 let animationFrameId = null;
 
 // =========================================================
-// 🧮 دوال العمليات الحسابية للمسار
+// 🧮 دوال العمليات الحسابية
 // =========================================================
 function haversineDistance(a, b) {
     const R = 6371000;
@@ -78,43 +64,28 @@ function densifyLine(coords, stepMeters = 3) {
     return result.filter((p, i, arr) => i === 0 || p[0] !== arr[i - 1][0] || p[1] !== arr[i - 1][1]);
 }
 
-map.on('load', () => {
-    // 1. تحميل الأماكن
-    if (typeof alakPlaces !== 'undefined') {
-        let safeMapFont = ['Noto Sans Regular'];
-        const styleLayers = map.getStyle().layers;
-        for (let i = 0; i < styleLayers.length; i++) {
-            if (styleLayers[i].type === 'symbol' && styleLayers[i].layout && styleLayers[i].layout['text-font']) {
-                safeMapFont = styleLayers[i].layout['text-font'];
-                break;
-            }
-        }
-        map.addSource('alak-custom-places', { 'type': 'geojson', 'data': alakPlaces });
-        map.addLayer({
-            'id': 'alak-places-layer', 'type': 'symbol', 'source': 'alak-custom-places', 'minzoom': 13,
-            'layout': {
-                'icon-image': ['concat', ['get', 'icon'], '_11'],
-                'icon-size': 1.1,
-                'text-field': ['get', 'title'],
-                'text-font': safeMapFont,
-                'text-size': ['interpolate', ['linear'], ['zoom'], 14, 11, 17, 13, 20, 16],
-                'symbol-sort-key': ['coalesce', ['get', 'priority'], 10],
-                'text-offset': [0, 1.2],
-                'text-anchor': 'top',
-                'icon-allow-overlap': false,
-                'text-allow-overlap': false,
-                'icon-padding': 2,
-                'text-padding': 2,
-                'icon-optional': true
-            },
-            'paint': { 'text-color': '#4a4a4a', 'text-halo-color': '#ffffff', 'text-halo-width': 2 }
-        });
+// =========================================================
+// 🌐 دالة جلب المسار الحقيقي من سيرفر OSRM
+// =========================================================
+async function getRealRoute(start, end) {
+    // نطلب المسار من السيرفر بصيغة GeoJSON
+    const url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson`;
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        // إرجاع مصفوفة الإحداثيات المطابقة للشارع
+        return data.routes[0].geometry.coordinates;
+    } catch (error) {
+        console.error("خطأ في جلب المسار:", error);
+        return [start, end]; // في حال فشل السيرفر، ارسم خط مباشر كبديل
     }
+}
 
-    // 2. رسم المسار
+map.on('load', async () => {
+    // 1. إضافة مصادر فارغة للمسار (راح نمليها بعدين من السيرفر)
     map.addSource('routeSource', {
         'type': 'geojson',
-        'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': ROUTE_COORDS } }
+        'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': [] } }
     });
     
     map.addLayer({
@@ -131,8 +102,21 @@ map.on('load', () => {
         'paint': { 'line-color': '#4285f4', 'line-width': 4, 'line-opacity': 0.8 }
     });
 
+    // 2. جلب المسار الحقيقي وتحديث الخريطة
+    const realRouteCoords = await getRealRoute(DRIVER_COORD, CUSTOMER_COORD);
+    
+    // تحديث بيانات المسار على الخريطة
+    map.getSource('routeSource').setData({
+        'type': 'Feature',
+        'properties': {},
+        'geometry': { 'type': 'LineString', 'coordinates': realRouteCoords }
+    });
+
+    // 3. وضع علامة للزبون (للتوضيح فقط)
+    new maplibregl.Marker({ color: 'red' }).setLngLat(CUSTOMER_COORD).addTo(map);
+
     // =========================================================
-    // 🚗 إعداد السيارة
+    // 🚗 إعداد السيارة والحركة على المسار الحقيقي
     // =========================================================
     const carImg = new Image();
     carImg.src = 'car-icon.png'; 
@@ -153,44 +137,12 @@ map.on('load', () => {
             transition: 'opacity 0.2s ease-in-out' 
         });
 
-        const pulseElement = document.createElement('div');
-        Object.assign(pulseElement.style, {
-            position: 'absolute',
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            backgroundColor: 'rgba(66, 133, 244, 0.3)',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            animation: 'pulse-animation 2s infinite',
-            pointerEvents: 'none'
-        });
-        carElement.appendChild(pulseElement);
-
-        if (!document.getElementById('car-styles-fix')) {
-            const style = document.createElement('style');
-            style.id = 'car-styles-fix';
-            style.textContent = `
-                @keyframes pulse-animation {
-                    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
-                    50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.1; }
-                    100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
-                }
-                .car-marker {
-                    transform-origin: center center;
-                    backface-visibility: hidden;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
         const carMarker = new maplibregl.Marker({
             element: carElement,
             rotationAlignment: 'map',    
             anchor: 'center'             
         })
-        .setLngLat(ROUTE_COORDS[0])
+        .setLngLat(realRouteCoords[0])
         .addTo(map);
 
         map.on('zoom', () => {
@@ -202,14 +154,14 @@ map.on('load', () => {
         });
 
         // =========================================================
-        // 🎯 محرك الحركة (بدون رجفة)
+        // 🎯 محرك الحركة (يستخدم المسار الحقيقي الآن)
         // =========================================================
-        const DENSE_POINTS = densifyLine(ROUTE_COORDS, 3);
+        const DENSE_POINTS = densifyLine(realRouteCoords, 3);
         let currentIndex = 0;
         let lastTimestamp = 0;
         let segmentProgress = 0;
         let currentBearing = 0;
-        const SPEED_MPS = 12; 
+        const SPEED_MPS = 12; // السرعة
 
         function animateCar(timestamp) {
             if (lastTimestamp === 0) lastTimestamp = timestamp;
@@ -218,6 +170,8 @@ map.on('load', () => {
             const safeDelta = Math.min(deltaTime, 50) / 1000;
 
             if (currentIndex >= DENSE_POINTS.length - 1) {
+                // من توصل السيارة للزبون توقف (أو ترجع تعيد)
+                // حالياً خليناها تعيد الحركة للتجربة
                 currentIndex = 0;
                 segmentProgress = 0;
                 lastTimestamp = timestamp;
@@ -261,9 +215,6 @@ map.on('load', () => {
             while (diff > 180) diff -= 360;
             while (diff < -180) diff += 360;
             
-            // ✅ الحل السحري للهزة (Jitter Fix):
-            // إذا كان التغيير بالزاوية أقل من درجة وحدة، انطيها الزاوية المباشرة (استعدال)
-            // وإذا الاستدارة قوية (لفة شارع)، نعمها حتى تلف براحتها
             if (Math.abs(diff) < 1) {
                 currentBearing = targetBearing;
             } else {
