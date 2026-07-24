@@ -20,37 +20,55 @@ function initUserLocation(map) {
                     essential: true
                 });
 
-                // 2. تصميم ماركر الرادار
+                // 2. تصميم ماركر الرادار المركزي
                 const userMarkerElement = document.createElement('div');
-                userMarkerElement.style.position = 'relative';
+                Object.assign(userMarkerElement.style, {
+                    position: 'relative',
+                    width: '20px',
+                    height: '20px'
+                });
 
-                // الموجة الأولى (الرادار الداخلي)
+                // الموجة الأولى (الرادار الداخلي - تتوسط العنصر تماماً)
                 const wave1 = document.createElement('div');
                 Object.assign(wave1.style, {
-                    position: 'absolute', top: '-15px', left: '-15px',
-                    width: '50px', height: '50px',
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '50px',
+                    height: '50px',
                     backgroundColor: 'rgba(66, 133, 244, 0.2)',
                     border: '1px solid rgba(66, 133, 244, 0.4)',
                     borderRadius: '50%',
-                    animation: 'radar-pulse 2.5s infinite linear'
+                    animation: 'radar-pulse 2.5s infinite linear',
+                    pointerEvents: 'none'
                 });
 
-                // الموجة الثانية (الرادار الخارجي)
+                // الموجة الثانية (الرادار الخارجي - تتوسط العنصر تماماً)
                 const wave2 = document.createElement('div');
                 Object.assign(wave2.style, {
-                    position: 'absolute', top: '-30px', left: '-30px',
-                    width: '80px', height: '80px',
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '80px',
+                    height: '80px',
                     backgroundColor: 'rgba(66, 133, 244, 0.1)',
                     border: '1px solid rgba(66, 133, 244, 0.2)',
                     borderRadius: '50%',
-                    animation: 'radar-pulse 2.5s infinite linear 1s' // تأخير ثانية حتى تبين موجات متتالية
+                    animation: 'radar-pulse 2.5s infinite linear 1s',
+                    pointerEvents: 'none'
                 });
 
-                // النقطة المركزية (البيضاء والزرقاء)
+                // النقطة المركزية (البيضاء والزرقاء - في المنتصف الفعلي للإحداثي)
                 const coreDot = document.createElement('div');
                 Object.assign(coreDot.style, {
-                    position: 'absolute', top: '0', left: '0',
-                    width: '20px', height: '20px',
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '20px',
+                    height: '20px',
                     backgroundColor: '#4285F4',
                     borderRadius: '50%',
                     border: '3px solid white',
@@ -68,20 +86,20 @@ function initUserLocation(map) {
                     style.id = 'radar-style';
                     style.textContent = `
                         @keyframes radar-pulse {
-                            0% { transform: scale(0.5); opacity: 0; }
+                            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
                             50% { opacity: 1; }
-                            100% { transform: scale(1.5); opacity: 0; }
+                            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
                         }
                     `;
                     document.head.appendChild(style);
                 }
 
-                // 3. إضافة الماركر (الرادار) للخريطة فعلياً
-                new maplibregl.Marker({ element: userMarkerElement })
+                // 3. إضافة الماركر مع تحديد anchor على 'center' لضمان الثبات التام على الإحداثي
+                new maplibregl.Marker({ element: userMarkerElement, anchor: 'center' })
                     .setLngLat(userLocation)
                     .addTo(map);
 
-            }, // 👈 تم إضافة قوس الإغلاق المفقود هنا
+            },
             (error) => {
                 console.error("خطأ في تحديد الموقع: ", error.message);
                 alert("يرجى تفعيل الـ GPS والسماح بصلاحية الموقع حتى نقدر نحدد مكانك.");
