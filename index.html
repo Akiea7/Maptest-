@@ -20,6 +20,57 @@
     </style>
 </head>
 <body class="relative h-screen w-full">
+<!-- ========================================================= -->
+<!-- 📱 واجهة التطبيق العائمة (الوضع النهاري الفخم - Glassmorphism) -->
+<!-- ========================================================= -->
+<!-- الكلاس pointer-events-none يخليك تكدر تحرك الخريطة من المساحات الفارغة -->
+<div class="fixed inset-0 z-40 flex flex-col justify-between p-4 pb-8 pointer-events-none">
+    
+    <!-- 🟢 البار العلوي (البحث والملف الشخصي) -->
+    <div class="flex items-center gap-3 pointer-events-auto mt-2">
+        <!-- زر الملف الشخصي -->
+        <button class="w-12 h-12 rounded-full bg-white/70 backdrop-blur-xl border border-white/60 shadow-lg flex justify-center items-center text-gray-700 hover:bg-white transition-all">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>
+        </button>
+        
+        <!-- شريط البحث العلوي -->
+        <div class="flex-1 h-12 rounded-full bg-white/70 backdrop-blur-xl border border-white/60 shadow-lg flex items-center px-4 gap-3 transition-all focus-within:bg-white/90 focus-within:shadow-xl">
+            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" placeholder="إلى أين تريد الذهاب؟" class="bg-transparent w-full outline-none text-gray-800 placeholder-gray-500 font-medium">
+        </div>
+
+        <!-- زر الإشعارات -->
+        <button class="w-12 h-12 rounded-full bg-white/70 backdrop-blur-xl border border-white/60 shadow-lg flex justify-center items-center text-gray-700 hover:bg-white transition-all relative">
+            <!-- النقطة الحمراء للإشعارات الجديدة -->
+            <span class="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+        </button>
+    </div>
+
+    <!-- 🟢 المنطقة الوسطى (الأزرار الجانبية) -->
+    <div class="flex justify-end pointer-events-auto mb-6">
+        <div class="flex flex-col gap-4">
+            <!-- زر موقعي الحالي (مربوط بدالة الـ GPS اللي سويناها) -->
+            <button onclick="if(typeof initUserLocation === 'function') initUserLocation(map);" class="w-12 h-12 rounded-full bg-white/80 backdrop-blur-xl border border-white/60 shadow-xl flex flex-col justify-center items-center text-blue-500 hover:text-blue-600 hover:bg-white transition-all group">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path></svg>
+            </button>
+            
+            <!-- زر إعادة الاتجاه (يصفر الدوران) -->
+            <button onclick="map.flyTo({bearing: 0, pitch: 0})" class="w-12 h-12 rounded-full bg-white/80 backdrop-blur-xl border border-white/60 shadow-xl flex justify-center items-center text-gray-700 hover:bg-white transition-all">
+                <svg class="w-6 h-6 transform -rotate-45 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- 🟢 البار السفلي -->
+    <div class="pointer-events-auto flex justify-center pb-2">
+        <div class="w-full max-w-sm h-14 rounded-full bg-white/80 backdrop-blur-xl border border-white/60 shadow-2xl flex items-center px-6 gap-3 transition-all focus-within:bg-white/90">
+            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" placeholder="ابحث عن وجهة" class="bg-transparent w-full outline-none text-gray-800 placeholder-gray-500 font-bold text-lg">
+        </div>
+    </div>
+
+</div>
 
     <!-- حاوية الخريطة -->
     <div id="map"></div>
