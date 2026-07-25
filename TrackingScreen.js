@@ -1,19 +1,15 @@
 // =========================================================
-// 🛠️ الإعدادات (Alek App) - التوجيه الحقيقي على الشوارع
+// 🛠️ الإعدادات (Alek App) - تحديد الوجهة ورسم المسار الديناميكي
 // =========================================================
-const CAR_SIZE_PX = 48; 
-const CAR_ANGLE_OFFSET = 0; 
-const MIN_VISIBLE_ZOOM = 13.5; 
-
-const DRIVER_COORD = [44.3735000, 33.6645000]; 
-const CUSTOMER_COORD = [44.3835000, 33.6692000]; 
 
 maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
+
+const DEFAULT_COORD = [44.3783246, 33.6668412]; 
 
 const map = new maplibregl.Map({
     container: 'map',
     style: 'alak-style.json?v=3',
-    center: DRIVER_COORD,
+    center: DEFAULT_COORD,
     zoom: 15.5,
     bearing: 0, 
     pitch: 0,   
@@ -23,151 +19,162 @@ const map = new maplibregl.Map({
     attributionControl: false
 });
 
+// متغيرات الوجهة العالمية
+window.destinationCoords = null;
+window.isDestinationSet = false;
+let moveTimeout = null;
+
+const destinationPanel = document.getElementById('destination-panel');
+const destinationCoordsEl = document.getElementById('destination-coords');
+const confirmDestinationBtn = document.getElementById('confirm-destination-btn');
+const cancelDestinationBtn = document.getElementById('cancel-destination-btn');
+const moveHint = document.getElementById('move-hint');
+const tripInfo = document.getElementById('trip-info');
+const tripDistanceEl = document.getElementById('trip-distance');
+const tripDurationEl = document.getElementById('trip-duration');
+const closeTripInfoBtn = document.getElementById('close-trip-info');
+
 // =========================================================
-// 🧮 دوال حركة السيارة والمسار
+// 🌐 دالة رسم المسار الديناميكي عبر OSRM
 // =========================================================
-function haversineDistance(a, b) {
-    const R = 6371000;
-    const dLat = (b[1] - a[1]) * Math.PI / 180;
-    const dLon = (b[0] - a[0]) * Math.PI / 180;
-    const lat1 = a[1] * Math.PI / 180;
-    const lat2 = b[1] * Math.PI / 180;
-    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(h));
-}
-
-function trueBearing(a, b) {
-    const lon1 = a[0] * Math.PI / 180;
-    const lat1 = a[1] * Math.PI / 180;
-    const lon2 = b[0] * Math.PI / 180;
-    const lat2 = b[1] * Math.PI / 180;
-    const x = Math.sin(lon2 - lon1) * Math.cos(lat2);
-    const y = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-    return Math.atan2(x, y) * 180 / Math.PI;
-}
-
-function densifyLine(coords, stepMeters = 3) {
-    const result = [coords[0]];
-    for (let i = 0; i < coords.length - 1; i++) {
-        const a = coords[i], b = coords[i + 1];
-        const d = haversineDistance(a, b);
-        const steps = Math.max(1, Math.floor(d / stepMeters));
-        for (let j = 1; j <= steps; j++) {
-            const t = j / steps;
-            result.push([ a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t ]);
-        }
-    }
-    return result.filter((p, i, arr) => i === 0 || p[0] !== arr[i - 1][0] || p[1] !== arr[i - 1][1]);
-}
-
-async function getRealRoute(start, end) {
-    const url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson`;
+window.drawDynamicRoute = async function(from, to) {
     try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?geometries=geojson&overview=full`;
         const response = await fetch(url);
         const data = await response.json();
-        return data.routes[0].geometry.coordinates;
+        
+        if (!data.routes || data.routes.length === 0) {
+            alert('لا يمكن إيجاد مسار بين النقطتين');
+            return;
+        }
+        
+        const route = data.routes[0];
+        const coords = route.geometry.coordinates;
+        const distance = route.distance; 
+        const duration = route.duration; 
+        
+        // إزالة الطبقات القديمة إن وجدت
+        if (map.getLayer('dynamic-route-casing')) {
+            map.removeLayer('dynamic-route-casing');
+            map.removeLayer('dynamic-route-core');
+        }
+        if (map.getSource('dynamic-route-source')) {
+            map.removeSource('dynamic-route-source');
+        }
+        
+        map.addSource('dynamic-route-source', {
+            'type': 'geojson',
+            'data': {
+                'type': 'Feature',
+                'properties': {},
+                'geometry': {
+                    'type': 'LineString',
+                    'coordinates': coords
+                }
+            }
+        });
+        
+        map.addLayer({
+            'id': 'dynamic-route-casing',
+            'type': 'line',
+            'source': 'dynamic-route-source',
+            'layout': { 'line-cap': 'round', 'line-join': 'round' },
+            'paint': { 'line-color': '#8ab4f8', 'line-width': 10, 'line-opacity': 0.5 }
+        }, 'road_minor_casing'); 
+        
+        map.addLayer({
+            'id': 'dynamic-route-core',
+            'type': 'line',
+            'source': 'dynamic-route-source',
+            'layout': { 'line-cap': 'round', 'line-join': 'round' },
+            'paint': { 'line-color': '#4285f4', 'line-width': 5, 'line-opacity': 0.9 }
+        }, 'dynamic-route-casing');
+        
+        // تحديث واجهة معلومات الرحلة
+        tripDistanceEl.textContent = distance > 1000 ? `${(distance/1000).toFixed(1)} كم` : `${Math.round(distance)} م`;
+        const minutes = Math.ceil(duration / 60);
+        tripDurationEl.textContent = minutes < 60 ? `${minutes} دقيقة` : `${Math.floor(minutes/60)} ساعة ${minutes%60} دقيقة`;
+        
+        tripInfo.classList.remove('hidden');
+        
+        // ضبط الحدود لتشمل الرحلة كاملة
+        const bounds = new maplibregl.LngLatBounds();
+        coords.forEach(coord => bounds.extend(coord));
+        bounds.extend(from);
+        bounds.extend(to);
+        
+        map.fitBounds(bounds, { padding: 80, duration: 1500, maxZoom: 17 });
+        
     } catch (error) {
-        console.error("خطأ في جلب المسار:", error);
-        return [start, end]; 
+        console.error('خطأ في رسم المسار:', error);
     }
 }
 
-let animationFrameId = null;
-
-map.on('load', async () => {
-    
-    // 🎨 إضافة مقياس المسافة (Scale Bar)
-    map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
-    
-    // 🧭 إضافة البوصلة
+map.on('load', () => {
+    // 🧭 البوصلة
     const compassEl = document.getElementById('compass-indicator');
     if (compassEl) {
         map.on('rotate', () => {
             const bearing = map.getBearing();
             compassEl.style.transform = `rotate(${-bearing}deg)`;
         });
-        compassEl.addEventListener('click', () => {
-             map.resetNorth({duration: 1000});
-        });
+        compassEl.addEventListener('click', () => { map.resetNorth({duration: 1000}); });
     }
 
-    // 🚀 تهيئة نظام الـ GPS للمستخدم
+    // تشغيل نظام الـ GPS
     if (typeof initGPS === 'function') {
         initGPS(map);
     }
 
-    // رسم المسار والسيارة (كما كان سابقاً)
-    map.addSource('routeSource', { 'type': 'geojson', 'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': [] } } });
-    map.addLayer({ 'id': 'routeCasing', 'type': 'line', 'source': 'routeSource', 'minzoom': MIN_VISIBLE_ZOOM, 'layout': { 'line-cap': 'round', 'line-join': 'round' }, 'paint': { 'line-color': '#8ab4f8', 'line-width': 8, 'line-opacity': 0.4 } });
-    map.addLayer({ 'id': 'routeCore', 'type': 'line', 'source': 'routeSource', 'minzoom': MIN_VISIBLE_ZOOM, 'layout': { 'line-cap': 'round', 'line-join': 'round' }, 'paint': { 'line-color': '#4285f4', 'line-width': 4, 'line-opacity': 0.8 } });
-
-    const realRouteCoords = await getRealRoute(DRIVER_COORD, CUSTOMER_COORD);
-    map.getSource('routeSource').setData({ 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': realRouteCoords } });
-    new maplibregl.Marker({ color: 'red' }).setLngLat(CUSTOMER_COORD).addTo(map);
-
-    const carImg = new Image();
-    carImg.src = 'car-icon.png'; 
-    carImg.onload = () => {
-        const carElement = document.createElement('div');
-        carElement.className = 'car-marker';
-        Object.assign(carElement.style, { width: CAR_SIZE_PX + 'px', height: CAR_SIZE_PX + 'px', backgroundImage: `url('${carImg.src}')`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', imageRendering: 'crisp-edges', willChange: 'transform, opacity', transition: 'opacity 0.2s ease-in-out' });
-
-        const carMarker = new maplibregl.Marker({ element: carElement, rotationAlignment: 'map', anchor: 'center' })
-        .setLngLat(realRouteCoords[0]).addTo(map);
-
-        map.on('zoom', () => { carElement.style.opacity = map.getZoom() < MIN_VISIBLE_ZOOM ? '0' : '1'; });
-
-        const DENSE_POINTS = densifyLine(realRouteCoords, 3);
-        let currentIndex = 0, lastTimestamp = 0, segmentProgress = 0, currentBearing = 0;
-        const SPEED_MPS = 12; 
-
-        function animateCar(timestamp) {
-            if (lastTimestamp === 0) lastTimestamp = timestamp;
-            const deltaTime = timestamp - lastTimestamp;
-            lastTimestamp = timestamp;
-            const safeDelta = Math.min(deltaTime, 50) / 1000;
-
-            if (currentIndex >= DENSE_POINTS.length - 1) {
-                currentIndex = 0; segmentProgress = 0; lastTimestamp = timestamp;
-                animationFrameId = requestAnimationFrame(animateCar);
-                return;
-            }
-
-            let current = DENSE_POINTS[currentIndex], next = DENSE_POINTS[currentIndex + 1];
-            let segmentDistance = haversineDistance(current, next);
-
-            if (segmentDistance < 0.1) {
-                currentIndex++;
-                animationFrameId = requestAnimationFrame(animateCar);
-                return;
-            }
-
-            segmentProgress += (safeDelta * SPEED_MPS) / segmentDistance;
-
-            if (segmentProgress >= 1) {
-                const overflow = segmentProgress - 1;
-                currentIndex++;
-                if (currentIndex >= DENSE_POINTS.length - 1) {
-                    currentIndex = 0; segmentProgress = 0; lastTimestamp = timestamp;
-                } else {
-                    current = DENSE_POINTS[currentIndex]; next = DENSE_POINTS[currentIndex + 1];
-                    segmentDistance = haversineDistance(current, next);
-                    segmentProgress = (overflow * SPEED_MPS) / segmentDistance;
-                }
-            }
-
-            const lng = current[0] + (next[0] - current[0]) * segmentProgress;
-            const lat = current[1] + (next[1] - current[1]) * segmentProgress;
-            const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
-
-            let diff = targetBearing - currentBearing;
-            while (diff > 180) diff -= 360; while (diff < -180) diff += 360;
-            if (Math.abs(diff) < 1) currentBearing = targetBearing; else currentBearing += diff * 0.2; 
-
-            carMarker.setLngLat([lng, lat]);
-            carMarker.setRotation(currentBearing);
-            animationFrameId = requestAnimationFrame(animateCar);
+    // إظهار تلميح التحريك بالبداية
+    setTimeout(() => {
+        if (!window.isDestinationSet && !window.userCurrentPosition) {
+            moveHint.classList.remove('hidden');
+            setTimeout(() => moveHint.classList.add('hidden'), 3000);
         }
-        animationFrameId = requestAnimationFrame(animateCar);
-    };
+    }, 2000);
+
+    // تحديث إحداثيات الدبوس عند تحريك الخريطة
+    map.on('move', () => {
+        const center = map.getCenter();
+        window.destinationCoords = [center.lng, center.lat];
+        
+        destinationPanel.classList.remove('hidden');
+        destinationCoordsEl.textContent = `${window.destinationCoords[1].toFixed(5)}, ${window.destinationCoords[0].toFixed(5)}`;
+    });
+
+    // زر تأكيد الوجهة
+    confirmDestinationBtn.addEventListener('click', async () => {
+        if (!window.destinationCoords) return;
+        
+        window.isDestinationSet = true;
+        destinationPanel.classList.add('hidden');
+        
+        if (window.userCurrentPosition) {
+            await window.drawDynamicRoute(window.userCurrentPosition, window.destinationCoords);
+        } else {
+            alert('يرجى تفعيل زر GPS (أسفل اليمين) أولاً لتحديد موقع انطلاقك');
+        }
+    });
+
+    // زر إلغاء الوجهة
+    cancelDestinationBtn.addEventListener('click', () => {
+        destinationPanel.classList.add('hidden');
+        window.destinationCoords = null;
+        window.isDestinationSet = false;
+        tripInfo.classList.add('hidden');
+        
+        if (map.getLayer('dynamic-route-casing')) {
+            map.removeLayer('dynamic-route-cainsg'); // typo safety
+            map.removeLayer('dynamic-route-casing');
+            map.removeLayer('dynamic-route-core');
+        }
+        if (map.getSource('dynamic-route-source')) {
+            map.removeSource('dynamic-route-source');
+        }
+    });
+
+    closeTripInfoBtn.addEventListener('click', () => {
+        tripInfo.classList.add('hidden');
+    });
 });
