@@ -5,10 +5,8 @@ const CAR_SIZE_PX = 48;
 const CAR_ANGLE_OFFSET = 0; 
 const MIN_VISIBLE_ZOOM = 13.5; 
 
-// 📍 إحداثيات التجربة بالطارمية
-const DRIVER_COORD = [44.3735000, 33.6645000]; // موقع الكابتن
-const CUSTOMER_COORD = [44.3835000, 33.6692000]; // موقع الزبون
-// =========================================================
+const DRIVER_COORD = [44.3735000, 33.6645000]; 
+const CUSTOMER_COORD = [44.3835000, 33.6692000]; 
 
 maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
 
@@ -25,10 +23,8 @@ const map = new maplibregl.Map({
     attributionControl: false
 });
 
-let animationFrameId = null;
-
 // =========================================================
-// 🧮 دوال العمليات الحسابية
+// 🧮 دوال حركة السيارة والمسار
 // =========================================================
 function haversineDistance(a, b) {
     const R = 6371000;
@@ -64,104 +60,66 @@ function densifyLine(coords, stepMeters = 3) {
     return result.filter((p, i, arr) => i === 0 || p[0] !== arr[i - 1][0] || p[1] !== arr[i - 1][1]);
 }
 
-// =========================================================
-// 🌐 دالة جلب المسار الحقيقي من سيرفر OSRM
-// =========================================================
 async function getRealRoute(start, end) {
-    // نطلب المسار من السيرفر بصيغة GeoJSON
     const url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson`;
     try {
         const response = await fetch(url);
         const data = await response.json();
-        // إرجاع مصفوفة الإحداثيات المطابقة للشارع
         return data.routes[0].geometry.coordinates;
     } catch (error) {
         console.error("خطأ في جلب المسار:", error);
-        return [start, end]; // في حال فشل السيرفر، ارسم خط مباشر كبديل
+        return [start, end]; 
     }
 }
 
+let animationFrameId = null;
+
 map.on('load', async () => {
-    // 1. إضافة مصادر فارغة للمسار (راح نمليها بعدين من السيرفر)
-    map.addSource('routeSource', {
-        'type': 'geojson',
-        'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': [] } }
-    });
     
-    map.addLayer({
-        'id': 'routeCasing', 'type': 'line', 'source': 'routeSource',
-        'minzoom': MIN_VISIBLE_ZOOM,
-        'layout': { 'line-cap': 'round', 'line-join': 'round' },
-        'paint': { 'line-color': '#8ab4f8', 'line-width': 8, 'line-opacity': 0.4 }
-    });
+    // 🎨 إضافة مقياس المسافة (Scale Bar)
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left');
     
-    map.addLayer({
-        'id': 'routeCore', 'type': 'line', 'source': 'routeSource',
-        'minzoom': MIN_VISIBLE_ZOOM,
-        'layout': { 'line-cap': 'round', 'line-join': 'round' },
-        'paint': { 'line-color': '#4285f4', 'line-width': 4, 'line-opacity': 0.8 }
-    });
+    // 🧭 إضافة البوصلة
+    const compassEl = document.getElementById('compass-indicator');
+    if (compassEl) {
+        map.on('rotate', () => {
+            const bearing = map.getBearing();
+            compassEl.style.transform = `rotate(${-bearing}deg)`;
+        });
+        compassEl.addEventListener('click', () => {
+             map.resetNorth({duration: 1000});
+        });
+    }
 
-    // 2. جلب المسار الحقيقي وتحديث الخريطة
+    // 🚀 تهيئة نظام الـ GPS للمستخدم
+    if (typeof initGPS === 'function') {
+        initGPS(map);
+    }
+
+    // رسم المسار والسيارة (كما كان سابقاً)
+    map.addSource('routeSource', { 'type': 'geojson', 'data': { 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': [] } } });
+    map.addLayer({ 'id': 'routeCasing', 'type': 'line', 'source': 'routeSource', 'minzoom': MIN_VISIBLE_ZOOM, 'layout': { 'line-cap': 'round', 'line-join': 'round' }, 'paint': { 'line-color': '#8ab4f8', 'line-width': 8, 'line-opacity': 0.4 } });
+    map.addLayer({ 'id': 'routeCore', 'type': 'line', 'source': 'routeSource', 'minzoom': MIN_VISIBLE_ZOOM, 'layout': { 'line-cap': 'round', 'line-join': 'round' }, 'paint': { 'line-color': '#4285f4', 'line-width': 4, 'line-opacity': 0.8 } });
+
     const realRouteCoords = await getRealRoute(DRIVER_COORD, CUSTOMER_COORD);
-    
-    // تحديث بيانات المسار على الخريطة
-    map.getSource('routeSource').setData({
-        'type': 'Feature',
-        'properties': {},
-        'geometry': { 'type': 'LineString', 'coordinates': realRouteCoords }
-    });
-
-    // 3. وضع علامة للزبون (للتوضيح فقط)
+    map.getSource('routeSource').setData({ 'type': 'Feature', 'properties': {}, 'geometry': { 'type': 'LineString', 'coordinates': realRouteCoords } });
     new maplibregl.Marker({ color: 'red' }).setLngLat(CUSTOMER_COORD).addTo(map);
 
-    // =========================================================
-    // 🚗 إعداد السيارة والحركة على المسار الحقيقي
-    // =========================================================
     const carImg = new Image();
     carImg.src = 'car-icon.png'; 
-
     carImg.onload = () => {
         const carElement = document.createElement('div');
         carElement.className = 'car-marker';
-        
-        Object.assign(carElement.style, {
-            width: CAR_SIZE_PX + 'px',
-            height: CAR_SIZE_PX + 'px',
-            backgroundImage: `url('${carImg.src}')`, 
-            backgroundSize: 'contain',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center',
-            imageRendering: 'crisp-edges', 
-            willChange: 'transform, opacity',
-            transition: 'opacity 0.2s ease-in-out' 
-        });
+        Object.assign(carElement.style, { width: CAR_SIZE_PX + 'px', height: CAR_SIZE_PX + 'px', backgroundImage: `url('${carImg.src}')`, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', backgroundPosition: 'center', imageRendering: 'crisp-edges', willChange: 'transform, opacity', transition: 'opacity 0.2s ease-in-out' });
 
-        const carMarker = new maplibregl.Marker({
-            element: carElement,
-            rotationAlignment: 'map',    
-            anchor: 'center'             
-        })
-        .setLngLat(realRouteCoords[0])
-        .addTo(map);
+        const carMarker = new maplibregl.Marker({ element: carElement, rotationAlignment: 'map', anchor: 'center' })
+        .setLngLat(realRouteCoords[0]).addTo(map);
 
-        map.on('zoom', () => {
-            if (map.getZoom() < MIN_VISIBLE_ZOOM) {
-                carElement.style.opacity = '0'; 
-            } else {
-                carElement.style.opacity = '1'; 
-            }
-        });
+        map.on('zoom', () => { carElement.style.opacity = map.getZoom() < MIN_VISIBLE_ZOOM ? '0' : '1'; });
 
-        // =========================================================
-        // 🎯 محرك الحركة (يستخدم المسار الحقيقي الآن)
-        // =========================================================
         const DENSE_POINTS = densifyLine(realRouteCoords, 3);
-        let currentIndex = 0;
-        let lastTimestamp = 0;
-        let segmentProgress = 0;
-        let currentBearing = 0;
-        const SPEED_MPS = 12; // السرعة
+        let currentIndex = 0, lastTimestamp = 0, segmentProgress = 0, currentBearing = 0;
+        const SPEED_MPS = 12; 
 
         function animateCar(timestamp) {
             if (lastTimestamp === 0) lastTimestamp = timestamp;
@@ -170,17 +128,12 @@ map.on('load', async () => {
             const safeDelta = Math.min(deltaTime, 50) / 1000;
 
             if (currentIndex >= DENSE_POINTS.length - 1) {
-                // من توصل السيارة للزبون توقف (أو ترجع تعيد)
-                // حالياً خليناها تعيد الحركة للتجربة
-                currentIndex = 0;
-                segmentProgress = 0;
-                lastTimestamp = timestamp;
+                currentIndex = 0; segmentProgress = 0; lastTimestamp = timestamp;
                 animationFrameId = requestAnimationFrame(animateCar);
                 return;
             }
 
-            let current = DENSE_POINTS[currentIndex];
-            let next = DENSE_POINTS[currentIndex + 1];
+            let current = DENSE_POINTS[currentIndex], next = DENSE_POINTS[currentIndex + 1];
             let segmentDistance = haversineDistance(current, next);
 
             if (segmentDistance < 0.1) {
@@ -194,14 +147,10 @@ map.on('load', async () => {
             if (segmentProgress >= 1) {
                 const overflow = segmentProgress - 1;
                 currentIndex++;
-
                 if (currentIndex >= DENSE_POINTS.length - 1) {
-                    currentIndex = 0;
-                    segmentProgress = 0;
-                    lastTimestamp = timestamp;
+                    currentIndex = 0; segmentProgress = 0; lastTimestamp = timestamp;
                 } else {
-                    current = DENSE_POINTS[currentIndex];
-                    next = DENSE_POINTS[currentIndex + 1];
+                    current = DENSE_POINTS[currentIndex]; next = DENSE_POINTS[currentIndex + 1];
                     segmentDistance = haversineDistance(current, next);
                     segmentProgress = (overflow * SPEED_MPS) / segmentDistance;
                 }
@@ -212,21 +161,13 @@ map.on('load', async () => {
             const targetBearing = trueBearing(current, next) + CAR_ANGLE_OFFSET;
 
             let diff = targetBearing - currentBearing;
-            while (diff > 180) diff -= 360;
-            while (diff < -180) diff += 360;
-            
-            if (Math.abs(diff) < 1) {
-                currentBearing = targetBearing;
-            } else {
-                currentBearing += diff * 0.2; 
-            }
+            while (diff > 180) diff -= 360; while (diff < -180) diff += 360;
+            if (Math.abs(diff) < 1) currentBearing = targetBearing; else currentBearing += diff * 0.2; 
 
             carMarker.setLngLat([lng, lat]);
             carMarker.setRotation(currentBearing);
-
             animationFrameId = requestAnimationFrame(animateCar);
         }
-
         animationFrameId = requestAnimationFrame(animateCar);
     };
 });
