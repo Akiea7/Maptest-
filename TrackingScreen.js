@@ -155,33 +155,47 @@ map.on('load', () => {
         } else {
             alert('يرجى تفعيل زر GPS (أسفل اليمين) أولاً لتحديد موقع انطلاقك');
                 // =========================================================
-    // 📍 إضافة أماكن العراق (POI) من ملف places.js
+        // =========================================================
+    // 📍 إضافة أماكن العراق (POI) من ملف places.js (مضمون 100%)
     // =========================================================
     
-    // 1. إضافة مصدر البيانات (Source)
+    // 1. إضافة مصدر البيانات
     map.addSource('custom-places', {
         'type': 'geojson',
-        'data': placesData // هذا المتغير اللي عرفناه بملف places.js
+        'data': placesData 
     });
 
-    // 2. إضافة طبقة العرض (Layer) للأيقونات والنصوص
+    // 2. طبقة الدوائر (علامة زرقاء بإطار أبيض تظهر دائماً)
+    map.addLayer({
+        'id': 'custom-places-points',
+        'type': 'circle',
+        'source': 'custom-places',
+        'paint': {
+            'circle-radius': 7,
+            'circle-color': '#1E3A8A',
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
+            'circle-box-shadow': '0 2px 4px rgba(0,0,0,0.5)' // تأثير ظل خفيف
+        }
+    });
+
+    // 3. طبقة النصوص (أسماء الأماكن تحت الدائرة)
     map.addLayer({
         'id': 'custom-places-layer',
         'type': 'symbol',
         'source': 'custom-places',
         'layout': {
-            'text-field': ['get', 'title'],        // جلب الاسم
-            'text-font': ['Noto Sans Regular'],    // نوع الخط
+            'text-field': ['get', 'title'],
+            'text-font': ['Noto Sans Regular'],
             'text-size': 13,
-            'text-offset': [0, 1.2],               // إزاحة النص تحت الأيقونة
+            'text-offset': [0, 1.2], // تنزيل النص تحت الدائرة
             'text-anchor': 'top',
-            'icon-image': 'marker_11',             // أيقونة افتراضية مؤقتة
-            'icon-size': 1.2
+            'text-allow-overlap': true // إجبار الخريطة على إظهار النص دائماً
         },
         'paint': {
-            'text-color': '#1E3A8A',               // لون النص (كحلي طوخ)
-            'text-halo-color': '#ffffff',          // إطار أبيض حول النص ليكون مقروء
-            'text-halo-width': 2
+            'text-color': '#1E3A8A',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 2.5
         }
     });
 
@@ -189,12 +203,15 @@ map.on('load', () => {
     // 👆 تفاعل المستخدم: النقر على اسم المكان لتحديده كوجهة
     // =========================================================
     
-    // عند النقر على المكان
-    map.on('click', 'custom-places-layer', (e) => {
+    // تفعيل النقر على الدائرة أو النص
+    map.on('click', 'custom-places-points', handlePlaceClick);
+    map.on('click', 'custom-places-layer', handlePlaceClick);
+
+    function handlePlaceClick(e) {
         const coordinates = e.features[0].geometry.coordinates.slice();
         const placeName = e.features[0].properties.title;
 
-        // 1. تحريك الكاميرا والدبوس للمكان بلمسة سينمائية
+        // 1. تحريك الكاميرا والدبوس للمكان
         map.flyTo({
             center: coordinates,
             zoom: 16.5,
@@ -202,21 +219,26 @@ map.on('load', () => {
             curve: 1.2
         });
 
-        // 2. تحديث لوحة الوجهة باسم المكان بدال الإحداثيات المزعجة!
+        // 2. تحديث لوحة الوجهة باسم المكان
         setTimeout(() => {
-            destinationCoordsEl.textContent = placeName;
-            destinationCoordsEl.classList.remove('dir-ltr', 'text-left');
-            destinationCoordsEl.classList.add('text-right', 'font-bold', 'text-blue-700');
-        }, 500); // تأخير بسيط حتى تنتهي حركة الخريطة
+            if(window.destinationCoordsEl) {
+                window.destinationCoordsEl.textContent = placeName;
+                window.destinationCoordsEl.classList.remove('dir-ltr', 'text-left');
+                window.destinationCoordsEl.classList.add('text-right', 'font-bold', 'text-blue-700');
+            }
+        }, 500); 
+    }
+
+    // تغيير شكل المؤشر ليدل على أنه قابل للنقر
+    ['custom-places-points', 'custom-places-layer'].forEach(layer => {
+        map.on('mouseenter', layer, () => {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', layer, () => {
+            map.getCanvas().style.cursor = '';
+        });
     });
 
-    // تغيير شكل الماوس (المؤشر) عند المرور فوق المكان ليدل على أنه قابل للنقر
-    map.on('mouseenter', 'custom-places-layer', () => {
-        map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', 'custom-places-layer', () => {
-        map.getCanvas().style.cursor = '';
-    });
 
         }
     });
