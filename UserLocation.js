@@ -1,127 +1,110 @@
 // =========================================================
-// 📍 UserLocation.js - النسخة النهائية (نقطة زرقاء ثابتة)
+// 📍 UserLocation.js - النسخة النهائية (الدبوس ثابت، والنقطة الزرقاء تثبت في موقعك)
 // =========================================================
 
 let userLocationMarker = null;
 let watchId = null;
+let lastValidLocation = null;
+let isMapCenteredOnUser = false;
 
 function initUserLocation(map) {
     if (!("geolocation" in navigator)) {
-        alert("متصفحك لا يدعم تحديد الموقع");
+        console.warn("⚠️ المتصفح لا يدعم تحديد الموقع");
         return;
     }
 
-    // إيقاف أي تتبع سابق
-    if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
-    }
-
-    // إزالة marker قديم
+    // تنظيف أي تتبع سابق
+    if (watchId) navigator.geolocation.clearWatch(watchId);
     if (userLocationMarker) {
         userLocationMarker.remove();
         userLocationMarker = null;
     }
 
-    // ✅ 1. جلب الموقع ووضع النقطة الزرقاء (بدون تحريك الخريطة أبداً)
+    console.log("🔍 جاري تحديد موقعك...");
+
+    // 1. الحصول على الموقع الأولي
     navigator.geolocation.getCurrentPosition(
         (position) => {
-            const userLocation = [
-                position.coords.longitude,
-                position.coords.latitude
-            ];
+            const loc = [position.coords.longitude, position.coords.latitude];
             const accuracy = position.coords.accuracy;
-
-            console.log("📍 تم تحديد موقعك:", userLocation);
             
-            // ✅ إنشاء النقطة الزرقاء في موقعك الحقيقي
-            createBlueDot(userLocation, accuracy, map);
+            lastValidLocation = loc;
+            console.log("✅ تم تحديد الموقع:", loc, "الدقة:", accuracy + "م");
+
+            // إنشاء النقطة الزرقاء (بدون تحريك الخريطة)
+            createBlueDot(loc, accuracy, map);
         },
         (error) => {
-            console.error("❌ خطأ في GPS:", error);
+            console.error("❌ خطأ في GPS:", error.message);
         },
-        {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 
-    // ✅ 2. مراقبة التحديثات (بدون تحريك الخريطة أبداً)
+    // 2. مراقبة التحديثات
     watchId = navigator.geolocation.watchPosition(
         (position) => {
-            const newLocation = [
-                position.coords.longitude,
-                position.coords.latitude
-            ];
             const accuracy = position.coords.accuracy;
+            if (accuracy > 100) return; // تجاهل الدقة السيئة
 
-            // ✅ تحديث موقع النقطة الزرقاء فقط (لا تتحرك الخريطة)
+            const newLoc = [position.coords.longitude, position.coords.latitude];
+            lastValidLocation = newLoc;
+
+            // تحديث النقطة الزرقاء فقط
             if (userLocationMarker) {
-                userLocationMarker.setLngLat(newLocation);
+                userLocationMarker.setLngLat(newLoc);
                 updateAccuracyCircle(accuracy);
             }
         },
         (error) => {
             console.error("❌ خطأ في التتبع:", error);
         },
-        {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 }
 
 function createBlueDot(location, accuracy, map) {
     const el = document.createElement('div');
-    el.className = 'blue-dot-container';
     el.style.position = 'relative';
-    el.style.width = '0';
-    el.style.height = '0';
+    el.style.width = '0px';
+    el.style.height = '0px';
     el.style.zIndex = '1000';
     el.style.pointerEvents = 'none';
 
     // دائرة الدقة
-    const accuracyCircle = document.createElement('div');
-    accuracyCircle.className = 'accuracy-circle';
-    const circleSize = Math.min(accuracy * 2, 150);
-    Object.assign(accuracyCircle.style, {
-        position: 'absolute',
-        top: '0',
-        left: '0',
-        width: `${circleSize}px`,
-        height: `${circleSize}px`,
-        backgroundColor: 'rgba(66, 133, 244, 0.15)',
-        border: '1px solid rgba(66, 133, 244, 0.3)',
-        borderRadius: '50%',
-        transform: 'translate(-50%, -50%)',
-        pointerEvents: 'none',
-        transition: 'all 0.5s ease'
-    });
+    const circle = document.createElement('div');
+    circle.className = 'accuracy-circle';
+    const size = Math.min(accuracy * 2, 150);
+    circle.style.cssText = `
+        position: absolute; top: 0; left: 0;
+        width: ${size}px; height: ${size}px;
+        background: rgba(66, 133, 244, 0.15);
+        border: 1px solid rgba(66, 133, 244, 0.3);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        transition: all 0.5s ease;
+    `;
 
     // النقطة الزرقاء
     const dot = document.createElement('div');
-    Object.assign(dot.style, {
-        position: 'absolute',
-        top: '0',
-        left: '0',
-        width: '16px',
-        height: '16px',
-        backgroundColor: '#4285F4',
-        borderRadius: '50%',
-        border: '3px solid white',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
-        transform: 'translate(-50%, -50%)',
-        zIndex: '10'
-    });
+    dot.style.cssText = `
+        position: absolute; top: 0; left: 0;
+        width: 16px; height: 16px;
+        background: #4285F4;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        transform: translate(-50%, -50%);
+        z-index: 10;
+    `;
 
-    el.appendChild(accuracyCircle);
+    el.appendChild(circle);
     el.appendChild(dot);
 
     // إضافة CSS
-    if (!document.getElementById('blue-dot-styles')) {
+    if (!document.getElementById('gps-style')) {
         const style = document.createElement('style');
-        style.id = 'blue-dot-styles';
+        style.id = 'gps-style';
         style.textContent = `
             @keyframes gps-pulse {
                 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.8; }
@@ -131,7 +114,6 @@ function createBlueDot(location, accuracy, map) {
         document.head.appendChild(style);
     }
 
-    // ✅ إنشاء النقطة الزرقاء في موقعك الحقيقي (بدون تحريك الخريطة)
     userLocationMarker = new maplibregl.Marker({
         element: el,
         anchor: 'center'
@@ -152,30 +134,27 @@ function updateAccuracyCircle(accuracy) {
 }
 
 // =========================================================
-// 🎯 زر "موقعي الحالي" - يحرك الخريطة فقط عند الضغط
+// 🎯 زر "موقعي" - يثبت الخريطة على موقعك
 // =========================================================
 function goToMyLocation(map) {
-    if (userLocationMarker) {
-        const loc = userLocationMarker.getLngLat();
+    if (lastValidLocation) {
+        console.log("📍 تثبيت الخريطة على موقعك");
         map.flyTo({
-            center: [loc.lng, loc.lat],
+            center: lastValidLocation,
             zoom: 16.5,
             speed: 1.2,
             duration: 1000
         });
+        isMapCenteredOnUser = true; // علامة أن الخريطة مثبتة على موقعك
     } else {
+        console.log("⏳ جاري تحديد الموقع...");
         initUserLocation(map);
     }
 }
 
-// تنظيف
-function stopUserLocationTracking() {
-    if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-    }
-    if (userLocationMarker) {
-        userLocationMarker.remove();
-        userLocationMarker = null;
-    }
-}
+// =========================================================
+// 🧹 تنظيف
+// =========================================================
+window.addEventListener('beforeunload', () => {
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+});
