@@ -228,5 +228,97 @@ map.on('load', async () => {
         }
 
         animationFrameId = requestAnimationFrame(animateCar);
+
+        // =========================================================
+// 📍 نظام تحديد الموقع الجغرافي الحقيقي (GPS)
+// =========================================================
+let userLocationMarker = null;
+let gpsWatchId = null;
+
+document.getElementById('gps-btn').addEventListener('click', () => {
+    if (!navigator.geolocation) {
+        alert("عذراً، متصفحك لا يدعم خدمة تحديد الموقع.");
+        return;
+    }
+
+    // تغيير شكل الزر ليدل على أن التحميل جارٍ
+    const gpsBtn = document.getElementById('gps-btn');
+    gpsBtn.classList.add('animate-pulse');
+
+    const options = {
+        enableHighAccuracy: true, // ⚠️ مهم جداً: يجبر الهاتف على استخدام شريحة GPS الحقيقية وليس الواي فاي فقط
+        timeout: 10000,           // أقصى وقت انتظار للاستجابة
+        maximumAge: 0             // عدم استخدام موقع مخزن سابقاً، جلب موقع جديد دائماً
+    };
+
+    // بدء مراقبة الموقع بشكل مستمر
+    gpsWatchId = navigator.geolocation.watchPosition(
+        (position) => {
+            gpsBtn.classList.remove('animate-pulse');
+            
+            const { latitude, longitude, accuracy, heading } = position.coords;
+            const currentPos = [longitude, latitude];
+
+            // 1. إنشاء أو تحديث ماركر الموقع (النقطة الزرقاء)
+            if (!userLocationMarker) {
+                const el = document.createElement('div');
+                el.className = 'user-gps-marker';
+                Object.assign(el.style, {
+                    width: '24px',
+                    height: '24px',
+                    backgroundColor: '#4285f4', // لون أزرق مثل جوجل
+                    border: '3px solid #ffffff',
+                    borderRadius: '50%',
+                    boxShadow: '0 0 15px rgba(66, 133, 244, 0.6)',
+                    transition: 'all 0.3s ease-out'
+                });
+
+                userLocationMarker = new maplibregl.Marker({ element: el })
+                    .setLngLat(currentPos)
+                    .addTo(map);
+                
+                // تحريك الخريطة للموقع لأول مرة بسلاسة
+                map.flyTo({
+                    center: currentPos,
+                    zoom: 16,
+                    speed: 1.2,
+                    curve: 1
+                });
+            } else {
+                // تحديث الموقع بسلاسة
+                userLocationMarker.setLngLat(currentPos);
+                
+                // إذا كان الجهاز يرسل اتجاه الحركة (Heading)، ندور الماركر
+                if (heading !== null && !isNaN(heading)) {
+                    userLocationMarker.setRotation(heading);
+                }
+            }
+
+            console.log(`تم تحديث الموقع: دقة ${Math.round(accuracy)} متر`);
+        },
+        (error) => {
+            gpsBtn.classList.remove('animate-pulse');
+            console.error("خطأ في GPS:", error);
+            
+            let errorMsg = "فشل في تحديد الموقع.";
+            if (error.code === 1) {
+                errorMsg = "يرجى السماح بالوصول إلى الموقع من إعدادات المتصفح/الهاتف.";
+            } else if (error.code === 2) {
+                errorMsg = "موقعك غير متاح حالياً (تأكد من تفعيل GPS).";
+            } else if (error.code === 3) {
+                errorMsg = "انتهت مهلة طلب الموقع.";
+            }
+            alert(errorMsg);
+        },
+        options
+    );
+});
+
+// دالة اختيارية لإيقاف تتبع GPS عند الخروج من الصفحة لتوفير البطارية
+window.addEventListener('beforeunload', () => {
+    if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+    }
+});
     };
 });
