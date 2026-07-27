@@ -1,19 +1,23 @@
 // =========================================================
-// 📍 ملف places.js - قاعدة بيانات الأماكن (مربوطة بملف JSON)
+// 📍 ملف places.js - قاعدة بيانات الأماكن (النسخة الآمنة المفلترة)
 // =========================================================
 
-// متغير عالمي نخزن بيه الداتا حتى نستخدمه بشريط البحث لاحقاً
 window.alekPlacesData = [];
 
 window.loadAlekPlaces = async function(mapInstance) {
     try {
-        // 1. قراءة ملف الأماكن الكامل (تأكد إن الملف baghdad_places.json مرفوع بنفس المجلد)
         const response = await fetch('./baghdad_places.json');
         const rawData = await response.json();
-        window.alekPlacesData = rawData;
+        
+        // هنا الفلتر الذكي: نستبعد أي مكان ما بيه إحداثيات أو إحداثياته مو أرقام
+        const validPlaces = rawData.filter(place => 
+            place.longitude && place.latitude && 
+            !isNaN(Number(place.longitude)) && !isNaN(Number(place.latitude))
+        );
 
-        // 2. تحويل البيانات لصيغة GeoJSON اللي تفهمها الخريطة
-        const features = rawData.map(place => {
+        window.alekPlacesData = validPlaces;
+
+        const features = validPlaces.map(place => {
             return {
                 "type": "Feature",
                 "properties": {
@@ -22,7 +26,8 @@ window.loadAlekPlaces = async function(mapInstance) {
                 },
                 "geometry": {
                     "type": "Point",
-                    "coordinates": [place.longitude, place.latitude] // الإحداثيات: الطول ثم العرض
+                    // تحويل الإحداثيات لأرقام صحيحة إجبارياً لتجنب الكراش
+                    "coordinates": [Number(place.longitude), Number(place.latitude)] 
                 }
             };
         });
@@ -32,16 +37,14 @@ window.loadAlekPlaces = async function(mapInstance) {
             "features": features
         };
 
-        // 3. إضافة البيانات كمصدر (Source) مع تفعيل نظام التجميع (Cluster) لمنع الكراش
         mapInstance.addSource('places-source', {
             type: 'geojson',
             data: geojsonData,
             cluster: true,
-            clusterMaxZoom: 15, // الزوم اللي توقف عنده الدوائر المجمعة وتتحول لنقاط
-            clusterRadius: 50   // مسافة التجميع (كل ما كبر الرقم تجمعت مناطق أكثر بدائرة وحدة)
+            clusterMaxZoom: 15, 
+            clusterRadius: 50   
         });
 
-        // 4. طبقة الدوائر المجمعة (باللون الأزرق الخاص بـ Alek)
         mapInstance.addLayer({
             id: 'clusters',
             type: 'circle',
@@ -56,7 +59,6 @@ window.loadAlekPlaces = async function(mapInstance) {
             }
         });
 
-        // 5. طبقة الأرقام داخل الدوائر
         mapInstance.addLayer({
             id: 'cluster-count',
             type: 'symbol',
@@ -70,7 +72,6 @@ window.loadAlekPlaces = async function(mapInstance) {
             paint: { 'text-color': '#ffffff' }
         });
 
-        // 6. طبقة النقاط المفردة (من تقرب الخريطة كلش)
         mapInstance.addLayer({
             id: 'unclustered-point',
             type: 'circle',
@@ -84,7 +85,6 @@ window.loadAlekPlaces = async function(mapInstance) {
             }
         });
 
-        // 7. طبقة أسماء الأماكن المفردة
         mapInstance.addLayer({
             id: 'unclustered-point-label',
             type: 'symbol',
@@ -104,7 +104,7 @@ window.loadAlekPlaces = async function(mapInstance) {
             }
         });
 
-        console.log("✅ تم دمج الأماكن بالخريطة بنجاح!");
+        console.log(`✅ تم دمج ${validPlaces.length} مكان صحيح وتجاهل الأماكن التالفة!`);
 
     } catch (error) {
         console.error("❌ صار خطأ بتحميل الأماكن:", error);
