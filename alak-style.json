@@ -394,7 +394,6 @@
       }
     },
     {
-          {
       "id": "place_label_suburb",
       "type": "symbol",
       "source": "openmaptiles",
