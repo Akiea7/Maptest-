@@ -394,24 +394,25 @@
       }
     },
     {
+          {
       "id": "place_label_suburb",
       "type": "symbol",
       "source": "openmaptiles",
       "source-layer": "place",
-      "minzoom": 12,
+      "minzoom": 10.5,
       "filter": ["==", ["get", "class"], "suburb"],
       "layout": {
         "symbol-sort-key": ["get", "rank"],
         "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"]],
-        "text-font": ["Noto Sans Italic"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 11, 16, 15],
+        "text-font": ["Noto Sans Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10.5, 11, 16, 17],
         "text-anchor": "center",
         "text-padding": 5
       },
       "paint": {
-        "text-color": "#555555",
-        "text-halo-color": "rgba(255,255,255,0.8)",
-        "text-halo-width": 0.2
+        "text-color": "#1A5276",
+        "text-halo-color": "rgba(255,255,255,0.2)",
+        "text-halo-width": 0.5
       }
     },
     {
@@ -419,23 +420,23 @@
       "type": "symbol",
       "source": "openmaptiles",
       "source-layer": "place",
-      "minzoom": 13.5,
+      "minzoom": 11.5,
       "filter": ["==", ["get", "class"], "neighbourhood"],
       "layout": {
         "symbol-sort-key": ["get", "rank"],
         "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"]],
-        "text-font": ["Noto Sans Italic"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 13.5, 10, 17, 13],
+        "text-font": ["Noto Sans Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 11.5, 10, 17, 15],
         "text-anchor": "center",
         "text-padding": 5
       },
       "paint": {
-        "text-color": "#666666",
-        "text-halo-color": "rgba(255,255,255,0.8)",
-        "text-halo-width": 0.2
+        "text-color": "#21618C",
+        "text-halo-color": "rgba(255,255,255,0.2)",
+        "text-halo-width": 0.5
       }
-    },
-    {
+    }
+
       "id": "road_label_major",
       "type": "symbol",
       "source": "openmaptiles",
