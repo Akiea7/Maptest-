@@ -435,7 +435,7 @@
         "text-halo-color": "rgba(255, 255, 255, 0.4)",
         "text-halo-width": 0.5
       }
-    }
+    }, 
     {
       "id": "road_label_major",
       "type": "symbol",
