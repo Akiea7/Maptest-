@@ -394,7 +394,6 @@
       }
     },
     {
-          {
       "id": "place_label_suburb",
       "type": "symbol",
       "source": "openmaptiles",
@@ -435,8 +434,8 @@
         "text-halo-color": "rgba(255,255,255,0.2)",
         "text-halo-width": 0.5
       }
-    }
-
+    },
+    {
       "id": "road_label_major",
       "type": "symbol",
       "source": "openmaptiles",
