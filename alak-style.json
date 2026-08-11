@@ -297,7 +297,7 @@
       "type": "symbol",
       "source": "openmaptiles",
       "source-layer": "poi",
-      "minzoom": 14,
+      "minzoom": 16,
       "filter": [
         "any",
         ["==", ["get", "class"], "restaurant"],
@@ -315,19 +315,19 @@
       ],
       "layout": {
         "icon-image": ["concat", ["get", "class"], "_11"],
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 14, 0.8, 18, 1.2],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 16, 0.8, 18, 1.2],
         "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"]],
         "text-font": ["Noto Sans Regular"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 15, 10, 18, 14],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 16, 10, 18, 14],
         "text-anchor": "top",
         "text-offset": [0, 0.8]
       },
       "paint": {
-        "icon-opacity": ["interpolate", ["linear"], ["zoom"], 14, 0.2, 14.5, 1],
+        "icon-opacity": ["interpolate", ["linear"], ["zoom"], 16, 0.2, 16.5, 1],
         "text-color": "#555555",
         "text-halo-color": "rgba(255,255,255,0.7)",
         "text-halo-width": 0.2,
-        "text-opacity": ["interpolate", ["linear"], ["zoom"], 14.9, 0, 15, 1]
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 15.9, 0, 16, 1]
       }
     },
     {
@@ -398,13 +398,13 @@
       "type": "symbol",
       "source": "openmaptiles",
       "source-layer": "place",
-      "minzoom": 10,
+      "minzoom": 9,
       "filter": ["==", ["get", "class"], "suburb"],
       "layout": {
         "symbol-sort-key": ["get", "rank"],
         "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"]],
         "text-font": ["Noto Sans Bold"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 12, 14, 18],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 9, 12, 14, 18],
         "text-anchor": "center",
         "text-padding": 5
       },
@@ -419,13 +419,13 @@
       "type": "symbol",
       "source": "openmaptiles",
       "source-layer": "place",
-      "minzoom": 11,
+      "minzoom": 10,
       "filter": ["==", ["get", "class"], "neighbourhood"],
       "layout": {
         "symbol-sort-key": ["get", "rank"],
         "text-field": ["coalesce", ["get", "name:ar"], ["get", "name"]],
         "text-font": ["Noto Sans Bold"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 11, 11, 15, 16],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 11, 15, 16],
         "text-anchor": "center",
         "text-padding": 5
       },
@@ -434,7 +434,7 @@
         "text-halo-color": "rgba(255, 255, 255, 0.4)",
         "text-halo-width": 0.5
       }
-    }, 
+    },
     {
       "id": "road_label_major",
       "type": "symbol",
