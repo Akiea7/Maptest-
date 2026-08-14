@@ -1,210 +1,203 @@
 // =========================================================
-// 📍 ملف places.js - قاعدة بيانات الأماكن (التحديث الشامل لحل المربعات السوداء)
+// 📍 places.js - النسخة النهائية (حجم موحّد + تصنيف دقيق + بدون مربعات)
 // =========================================================
 
 const customIconImages = {
-    'custom-bank': './icons/Bank.png',
-    'custom-cafe': './icons/Cafe.png',
+    'custom-bank':        './icons/Bank.png',
+    'custom-cafe':        './icons/Cafe.png',
     'custom-gas-station': './icons/Gas station.png',
-    'custom-hospital': './icons/Hospital.png',
-    'custom-market': './icons/Market.png',
-    'custom-clinic': './icons/Medical Clinic.png',
-    'custom-mosque': './icons/Mosque.png',
-    'custom-restaurant': './icons/Restaurant.png',
-    'custom-school': './icons/School.png',
+    'custom-hospital':    './icons/Hospital.png',
+    'custom-market':      './icons/Market.png',
+    'custom-clinic':      './icons/Medical Clinic.png',
+    'custom-mosque':      './icons/Mosque.png',
+    'custom-restaurant':  './icons/Restaurant.png',
+    'custom-school':      './icons/School.png',
     'custom-supermarket': './icons/Supermarket.png',
-    'custom-university': './icons/University.png',
-    'custom-bakery': './icons/bakery.png'
+    'custom-university':  './icons/University.png',
+    'custom-bakery':      './icons/bakery.png'
 };
+
+const ICON_DISPLAY_SIZE = 48; // الحجم المنطقي على الشاشة (بكسل)
+const ICON_PIXEL_RATIO  = 2;  // وضوح ريتينا
+const DEFAULT_ICON      = 'custom-market';
 
 window.alekPlacesData = [];
 
-window.loadAlekPlaces = async function(mapInstance) {
+// ---------- 1) تطبيع عربي كامل ----------
+function normalizeArabic(s) {
+    return (s || '')
+        .toLowerCase()
+        .replace(/[\u064B-\u0652\u0640\u0670]/g, '') // تشكيل + تطويل
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/[ىئ]/g, 'ي')
+        .replace(/ؤ/g, 'و')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// ---------- 2) قواعد التصنيف: الأطول/الأخص أولاً، والجامعة قبل الجامع! ----------
+const CLASSIFICATION_RULES = [
+    ['custom-university', ['جامعه', 'كليه', 'universit', 'college']],          // قبل "جامع" لأن جامعة تحتوي جامع
+    ['custom-school',     ['مدرسه', 'ابتدائيه', 'ثانويه', 'اعداديه', 'متوسطه', 'روضه', 'اهليه', 'school']],
+    ['custom-hospital',   ['مستشفي', 'مستوصف', 'hospital']],
+    ['custom-clinic',     ['صيدليه', 'عياده', 'مجمع طبي', 'مركز صحي', 'clinic', 'pharmacy']],
+    ['custom-mosque',     ['جامع', 'مسجد', 'حسينيه', 'مرقد', 'مقام', 'mosque']],
+    ['custom-bakery',     ['مخبز', 'افران', 'فرن', 'معجنات', 'bakery']],
+    ['custom-restaurant', ['مطعم', 'مطاعم', 'مقلى', 'مشوي', 'اكلات', 'بيتزا', 'restaurant', 'food']],
+    ['custom-cafe',       ['مقهي', 'كافيه', 'كوفي', 'cafe', 'coffee']],
+    ['custom-bank',       ['مصرف', 'بنك', 'bank']],
+    ['custom-gas-station',['وقود', 'بنزين', 'محطه', 'gas', 'fuel']],
+    ['custom-supermarket',['سوبر ماركت', 'سوبرماركت', 'اسواق', 'سوق', 'تسوق', 'هايبر', 'supermarket']],
+    ['custom-market',     ['ملعب', 'نادي', 'رياضه', 'قاعه', 'منتزه', 'متنزه', 'حديقه', 'محل', 'بقاليه', 'مركز']]
+];
+
+function classifyPlace(place, loadedIcons) {
+    // أ) إذا بالبيانات حقل category صريح → نستخدمه مباشرة (الأدق)
+    const cat = 'custom-' + String(place.category || place.type || '').toLowerCase().trim();
+    if (customIconImages[cat] && loadedIcons.has(cat)) return cat;
+
+    // ب) البحث الذكي بالكلمات المفتاحية
+    const s = normalizeArabic((place.type || '') + ' ' + (place.name || ''));
+    for (const [icon, keywords] of CLASSIFICATION_RULES) {
+        if (keywords.some(k => s.includes(k)) && loadedIcons.has(icon)) {
+            return icon;
+        }
+    }
+    // ج) افتراضي مضمون
+    return loadedIcons.has(DEFAULT_ICON) ? DEFAULT_ICON : [...loadedIcons][0];
+}
+
+// ---------- 3) تحميل الأيقونة وتصغيرها فعلياً (هذا يقتل المشكلة 1 و 2 معاً) ----------
+function loadAndResizeImage(map, url) {
+    return new Promise((resolve) => {
+        map.loadImage(url, (error, img) => {
+            if (error || !img) {
+                console.warn('⚠️ تعذر تحميل الأيقونة (تأكد من اسم الملف وحالة الأحرف):', url);
+                return resolve(null);
+            }
+            try {
+                const target = ICON_DISPLAY_SIZE * ICON_PIXEL_RATIO; // 96px فعلي
+                const ratio  = target / Math.max(img.width, img.height);
+                const canvas = document.createElement('canvas');
+                canvas.width  = Math.max(1, Math.round(img.width  * ratio));
+                canvas.height = Math.max(1, Math.round(img.height * ratio));
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas);
+            } catch (e) { resolve(img); }
+        });
+    });
+}
+
+// ---------- 4) التحميل الرئيسي ----------
+window.loadAlekPlaces = async function (mapInstance) {
     try {
-        // 1. تحميل الصور وإضافتها بطريقة متزامنة ومضمونة
-        const loadImages = async () => {
-            const promises = Object.entries(customIconImages).map(([id, url]) => {
-                return new Promise((resolve, reject) => {
-                    if (mapInstance.hasImage(id)) {
-                        resolve();
-                        return;
-                    }
+        // منع التكرار عند إعادة الاستدعاء
+        if (mapInstance.getSource('places-source')) return;
 
-                    // استخدام Image() العادية لضمان تحميلها بالكامل قبل إضافتها
-                    const img = new Image();
-                    img.crossOrigin = "Anonymous"; 
-                    img.onload = () => {
-                        try {
-                            mapInstance.addImage(id, img);
-                            resolve();
-                        } catch (e) {
-                            console.warn(`Error adding image ${id}:`, e);
-                            resolve(); 
-                        }
-                    };
-                    img.onerror = () => {
-                        console.warn(`Failed to load image ${id} from ${url}`);
-                        resolve(); 
-                    };
-                    img.src = url;
-                });
-            });
-            await Promise.all(promises);
-        };
-
-        // ننتظر تحميل كل الصور أولاً
-        await loadImages();
-
-        // 2. جلب بيانات الأماكن
-        const response = await fetch('./baghdad_places.json');
-        const rawData = await response.json();
-        
-        const validPlaces = rawData.filter(place => 
-            place.longitude && place.latitude && 
-            !isNaN(Number(place.longitude)) && !isNaN(Number(place.latitude))
+        // تحميل + تصغير كل الأيقونات قبل أي شيء
+        const results = await Promise.all(
+            Object.entries(customIconImages).map(([key, url]) =>
+                loadAndResizeImage(mapInstance, url).then(canvas => [key, canvas])
+            )
         );
 
+        const loadedIcons = new Set();
+        for (const [key, canvas] of results) {
+            if (!canvas) continue;
+            if (!mapInstance.hasImage(key)) {
+                mapInstance.addImage(key, canvas, { pixelRatio: ICON_PIXEL_RATIO });
+            }
+            loadedIcons.add(key);
+        }
+
+        // جلب البيانات
+        const response  = await fetch('./baghdad_places.json');
+        const rawData   = await response.json();
+        const validPlaces = rawData.filter(p =>
+            p.longitude && p.latitude &&
+            !isNaN(Number(p.longitude)) && !isNaN(Number(p.latitude))
+        );
         window.alekPlacesData = validPlaces;
 
-        const features = validPlaces.map(place => {
-            let iconName = 'custom-market'; 
-            let type = place.type ? place.type.toLowerCase() : "";
-            let name = place.name ? place.name.toLowerCase() : "";
-            
-            // الفلتر الذكي
-            let searchString = (type + " " + name).replace(/ة/g, 'ه').replace(/أ|إ|آ/g, 'ا').replace(/ى/g, 'ي');
-
-            if (searchString.includes("مطعم") || searchString.includes("restaurant") || searchString.includes("اكلات")) {
-                iconName = "custom-restaurant";
-            } else if (searchString.includes("مصرف") || searchString.includes("بنك") || searchString.includes("bank")) {
-                iconName = "custom-bank";
-            } else if (searchString.includes("مستشفي") || searchString.includes("hospital")) {
-                iconName = "custom-hospital";
-            } else if (searchString.includes("عياده") || searchString.includes("مجمع طبي") || searchString.includes("صيدليه") || searchString.includes("clinic")) {
-                iconName = "custom-clinic";
-            } else if (searchString.includes("جامع") || searchString.includes("مسجد") || searchString.includes("حسينيه") || searchString.includes("mosque")) {
-                iconName = "custom-mosque";
-            } else if (searchString.includes("مدرسه") || searchString.includes("اعداديه") || searchString.includes("متوسطه") || searchString.includes("school")) {
-                iconName = "custom-school";
-            } else if (searchString.includes("جامعه") || searchString.includes("كليه") || searchString.includes("university")) {
-                iconName = "custom-university";
-            } else if (searchString.includes("سوبر ماركت") || searchString.includes("اسواق") || searchString.includes("تسوق") || searchString.includes("supermarket")) {
-                iconName = "custom-supermarket";
-            } else if (searchString.includes("مقهي") || searchString.includes("كافيه") || searchString.includes("cafe")) {
-                iconName = "custom-cafe";
-            } else if (searchString.includes("وقود") || searchString.includes("بنزينخانه") || searchString.includes("محطه")) {
-                iconName = "custom-gas-station";
-            } else if (searchString.includes("مخبز") || searchString.includes("فرن") || searchString.includes("معجنات") || searchString.includes("bakery")) {
-                iconName = "custom-bakery";
+        const features = validPlaces.map(place => ({
+            type: 'Feature',
+            properties: {
+                title: place.name || 'بدون اسم',
+                type:  place.type || 'غير محدد',
+                icon:  classifyPlace(place, loadedIcons)
+            },
+            geometry: {
+                type: 'Point',
+                coordinates: [Number(place.longitude), Number(place.latitude)]
             }
+        }));
 
-            return {
-                "type": "Feature",
-                "properties": {
-                    "title": place.name || "بدون اسم",
-                    "type": place.type || "غير محدد",
-                    "icon": iconName
-                },
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [Number(place.longitude), Number(place.latitude)] 
-                }
-            };
+        mapInstance.addSource('places-source', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features },
+            cluster: true,
+            clusterMaxZoom: 15,
+            clusterRadius: 50
         });
 
-        const geojsonData = {
-            "type": "FeatureCollection",
-            "features": features
-        };
+        mapInstance.addLayer({
+            id: 'clusters', type: 'circle', source: 'places-source', minzoom: 13,
+            filter: ['has', 'point_count'],
+            paint: {
+                'circle-color': '#4285f4',
+                'circle-radius': ['step', ['get', 'point_count'], 15, 100, 20, 750, 25],
+                'circle-opacity': 0.9,
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#ffffff'
+            }
+        });
 
-        // 3. إضافة المصدر والطبقات بعد ضمان تحميل الصور
-        if (!mapInstance.getSource('places-source')) {
-            mapInstance.addSource('places-source', {
-                type: 'geojson',
-                data: geojsonData,
-                cluster: true,
-                clusterMaxZoom: 15, 
-                clusterRadius: 50   
-            });
-        } else {
-             mapInstance.getSource('places-source').setData(geojsonData);
-        }
+        mapInstance.addLayer({
+            id: 'cluster-count', type: 'symbol', source: 'places-source', minzoom: 13,
+            filter: ['has', 'point_count'],
+            layout: {
+                'text-field': '{point_count_abbreviated}',
+                'text-font': ['Noto Sans Bold'],
+                'text-size': 12
+            },
+            paint: { 'text-color': '#ffffff' }
+        });
 
-        if(!mapInstance.getLayer('clusters')) {
-            mapInstance.addLayer({
-                id: 'clusters',
-                type: 'circle',
-                source: 'places-source',
-                minzoom: 13,
-                filter: ['has', 'point_count'],
-                paint: {
-                    'circle-color': '#4285f4',
-                    'circle-radius': ['step', ['get', 'point_count'], 15, 100, 20, 750, 25],
-                    'circle-opacity': 0.9,
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#ffffff'
-                }
-            });
-        }
+        mapInstance.addLayer({
+            id: 'unclustered-point', type: 'symbol', source: 'places-source', minzoom: 14,
+            filter: ['!', ['has', 'point_count']],
+            layout: {
+                'icon-image': ['get', 'icon'],
+                'icon-size': 1,              // 👈 الآن دقيق: 48px منطقية مهما كان حجم الملف الأصلي
+                'icon-anchor': 'bottom',     // 👈 رأس الدبسوس على النقطة بالضبط
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true
+            }
+        });
 
-        if(!mapInstance.getLayer('cluster-count')) {
-            mapInstance.addLayer({
-                id: 'cluster-count',
-                type: 'symbol',
-                source: 'places-source',
-                minzoom: 13,
-                filter: ['has', 'point_count'],
-                layout: {
-                    'text-field': '{point_count_abbreviated}',
-                    'text-font': ['Noto Sans Bold'],
-                    'text-size': 12
-                },
-                paint: { 'text-color': '#ffffff' }
-            });
-        }
+        mapInstance.addLayer({
+            id: 'unclustered-point-label', type: 'symbol', source: 'places-source', minzoom: 14,
+            filter: ['!', ['has', 'point_count']],
+            layout: {
+                'text-field': ['get', 'title'],
+                'text-font': ['Noto Sans Bold'],
+                'text-offset': [0, 0.8],
+                'text-anchor': 'top',
+                'text-size': 11
+            },
+            paint: {
+                'text-color': '#333333',
+                'text-halo-color': 'rgba(255,255,255,0.9)',
+                'text-halo-width': 2
+            }
+        });
 
-        if(!mapInstance.getLayer('unclustered-point')) {
-            mapInstance.addLayer({
-                id: 'unclustered-point',
-                type: 'symbol', 
-                source: 'places-source',
-                minzoom: 14,
-                filter: ['!', ['has', 'point_count']],
-                layout: {
-                    'icon-image': ['get', 'icon'], 
-                    // صغرت الحجم أكثر بناءً على الفيديو
-                    'icon-size': 0.05, 
-                    'icon-allow-overlap': true,
-                    'icon-ignore-placement': true // يساعد في عدم التداخل
-                }
-            });
-        }
-
-        if(!mapInstance.getLayer('unclustered-point-label')) {
-            mapInstance.addLayer({
-                id: 'unclustered-point-label',
-                type: 'symbol',
-                source: 'places-source',
-                minzoom: 14,
-                filter: ['!', ['has', 'point_count']],
-                layout: {
-                    'text-field': ['get', 'title'],
-                    'text-font': ['Noto Sans Bold'], 
-                    'text-offset': [0, 1.5], // نزلنا النص شوية بسبب تغيير الحجم
-                    'text-anchor': 'top',
-                    'text-size': 11
-                },
-                paint: {
-                    'text-color': '#333333',
-                    'text-halo-color': 'rgba(255, 255, 255, 0.9)',
-                    'text-halo-width': 2
-                }
-            });
-        }
-
-        console.log(`✅ تم دمج الأماكن وحل مشكلة المربعات السوداء!`);
-
+        console.log('✅ تم دمج الأماكن: أحجام موحّدة وتصنيف دقيق');
     } catch (error) {
-        console.error("❌ صار خطأ بتحميل الأماكن:", error);
+        console.error('❌ صار خطأ بتحميل الأماكن:', error);
     }
-}
+};
