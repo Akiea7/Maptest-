@@ -2,11 +2,19 @@
 // 🎨 ملف customIcons.js - إدارة الأيقونات المخصصة لتطبيق أليك
 // =========================================================
 
-// تعريف الأيقونات المخصصة (يمكنك استبدال الروابط بروابط أيقوناتك الخاصة أو SVG)
 const customIconImages = {
-    'custom-shop': 'https://cdn-icons-png.flaticon.com/512/3081/3081559.png',
-    'custom-restaurant': 'https://cdn-icons-png.flaticon.com/512/3076/3076137.png',
-    'custom-marker': 'https://cdn-icons-png.flaticon.com/512/684/684908.png'
+    'custom-bank': './icons/Bank.png',
+    'custom-cafe': './icons/Cafe.png',
+    'custom-gas-station': './icons/Gas station.png',
+    'custom-hospital': './icons/Hospital.png',
+    'custom-market': './icons/Market.png',
+    'custom-clinic': './icons/Medical Clinic.png',
+    'custom-mosque': './icons/Mosque.png',
+    'custom-restaurant': './icons/Restaurant.png',
+    'custom-school': './icons/School.png',
+    'custom-supermarket': './icons/Supermarket.png',
+    'custom-university': './icons/University.png',
+    'custom-bakery': './icons/bakery.png'
 };
 
 // دالة تحميل الأيقونات داخل خريطة Maplibre
