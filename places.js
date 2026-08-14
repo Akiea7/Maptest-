@@ -1,11 +1,39 @@
 // =========================================================
-// 📍 ملف places.js - قاعدة بيانات الأماكن (النسخة الآمنة مع الأيقونات المخصصة)
+// 📍 ملف places.js - قاعدة بيانات الأماكن مع الأيقونات المخصصة
 // =========================================================
+
+// مسارات الأيقونات اللي رفعتها
+const customIconImages = {
+    'custom-bank': './icons/Bank.png',
+    'custom-cafe': './icons/Cafe.png',
+    'custom-gas-station': './icons/Gas station.png',
+    'custom-hospital': './icons/Hospital.png',
+    'custom-market': './icons/Market.png',
+    'custom-clinic': './icons/Medical Clinic.png',
+    'custom-mosque': './icons/Mosque.png',
+    'custom-restaurant': './icons/Restaurant.png',
+    'custom-school': './icons/School.png',
+    'custom-supermarket': './icons/Supermarket.png',
+    'custom-university': './icons/University.png',
+    'custom-bakery': './icons/bakery.png'
+};
 
 window.alekPlacesData = [];
 
 window.loadAlekPlaces = async function(mapInstance) {
     try {
+        // 1. تحميل الأيقونات داخل الخريطة أولاً
+        for (const [key, url] of Object.entries(customIconImages)) {
+            if (!mapInstance.hasImage(key)) {
+                mapInstance.loadImage(url, (error, image) => {
+                    if (!error) {
+                        mapInstance.addImage(key, image);
+                    }
+                });
+            }
+        }
+
+        // 2. جلب بيانات الأماكن
         const response = await fetch('./baghdad_places.json');
         const rawData = await response.json();
         
@@ -18,16 +46,12 @@ window.loadAlekPlaces = async function(mapInstance) {
         window.alekPlacesData = validPlaces;
 
         const features = validPlaces.map(place => {
-            // ==========================================
-            // 🎯 الفلتر الذكي لاختيار الأيقونة حسب نوع المكان
-            // ==========================================
-            let iconName = 'custom-market'; // الأيقونة الافتراضية إذا ما لكه النوع
+            let iconName = 'custom-market'; // الأيقونة الافتراضية
             let type = place.type ? place.type.toLowerCase() : "";
             let name = place.name ? place.name.toLowerCase() : "";
-            
-            // ندمج الاسم والنوع حتى نزيد دقة البحث عن الكلمة
             let searchString = type + " " + name;
 
+            // الفلتر الذكي لاختيار الأيقونة
             if (searchString.includes("مطعم") || searchString.includes("restaurant") || searchString.includes("اكلات")) {
                 iconName = "custom-restaurant";
             } else if (searchString.includes("مصرف") || searchString.includes("بنك") || searchString.includes("bank")) {
@@ -57,7 +81,7 @@ window.loadAlekPlaces = async function(mapInstance) {
                 "properties": {
                     "title": place.name || "بدون اسم",
                     "type": place.type || "غير محدد",
-                    "icon": iconName // ضفنا اسم الأيقونة هنا
+                    "icon": iconName
                 },
                 "geometry": {
                     "type": "Point",
@@ -79,7 +103,6 @@ window.loadAlekPlaces = async function(mapInstance) {
             clusterRadius: 50   
         });
 
-        // طبقة التجمعات (الدوائر الزرقاء اللي بيها أرقام)
         mapInstance.addLayer({
             id: 'clusters',
             type: 'circle',
@@ -107,17 +130,14 @@ window.loadAlekPlaces = async function(mapInstance) {
             paint: { 'text-color': '#ffffff' }
         });
 
-        // ==========================================
-        // 🔄 تحويل النقاط الفردية من دوائر إلى أيقوناتك
-        // ==========================================
         mapInstance.addLayer({
             id: 'unclustered-point',
-            type: 'symbol', // حولناها من circle إلى symbol
+            type: 'symbol', 
             source: 'places-source',
             filter: ['!', ['has', 'point_count']],
             layout: {
-                'icon-image': ['get', 'icon'], // يسحب اسم الأيقونة من الفلتر الفوك
-                'icon-size': 0.6, // تكدر تكبر وتصغر الأيقونة من هنا (0.5 إلى 1.0)
+                'icon-image': ['get', 'icon'], 
+                'icon-size': 0.4, // صغرت الأيقونة شوية حتى تطلع مرتبة
                 'icon-allow-overlap': true
             }
         });
@@ -130,7 +150,7 @@ window.loadAlekPlaces = async function(mapInstance) {
             layout: {
                 'text-field': ['get', 'title'],
                 'text-font': ['Noto Sans Regular'],
-                'text-offset': [0, 1.5], // نزلنا النص شوية حتى ميغطي على الأيقونة
+                'text-offset': [0, 1.2], 
                 'text-anchor': 'top',
                 'text-size': 12
             },
