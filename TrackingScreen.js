@@ -111,6 +111,9 @@ window.drawDynamicRoute = async function(from, to) {
 }
 
 map.on('load', () => {
+    
+    loadCustomIcons(map);
+
    
     // تحميل داتا الأماكن الجديدة
     if (typeof loadAlekPlaces === 'function') {
