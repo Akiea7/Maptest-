@@ -1,8 +1,7 @@
 // =========================================================
-// 📍 ملف places.js - قاعدة بيانات الأماكن مع الأيقونات المخصصة
+// 📍 ملف places.js - قاعدة بيانات الأماكن مع الأيقونات المخصصة والحجم الديناميكي
 // =========================================================
 
-// مسارات الأيقونات اللي رفعتها
 const customIconImages = {
     'custom-bank': './icons/Bank.png',
     'custom-cafe': './icons/Cafe.png',
@@ -107,6 +106,7 @@ window.loadAlekPlaces = async function(mapInstance) {
             id: 'clusters',
             type: 'circle',
             source: 'places-source',
+            minzoom: 13, 
             filter: ['has', 'point_count'],
             paint: {
                 'circle-color': '#4285f4',
@@ -121,6 +121,7 @@ window.loadAlekPlaces = async function(mapInstance) {
             id: 'cluster-count',
             type: 'symbol',
             source: 'places-source',
+            minzoom: 13,
             filter: ['has', 'point_count'],
             layout: {
                 'text-field': '{point_count_abbreviated}',
@@ -134,10 +135,11 @@ window.loadAlekPlaces = async function(mapInstance) {
             id: 'unclustered-point',
             type: 'symbol', 
             source: 'places-source',
+            minzoom: 14, 
             filter: ['!', ['has', 'point_count']],
             layout: {
                 'icon-image': ['get', 'icon'], 
-                'icon-size': 0.4, // صغرت الأيقونة شوية حتى تطلع مرتبة
+                'icon-size': ['interpolate', ['linear'], ['zoom'], 14, 0.1, 18, 0.2], 
                 'icon-allow-overlap': true
             }
         });
@@ -146,13 +148,14 @@ window.loadAlekPlaces = async function(mapInstance) {
             id: 'unclustered-point-label',
             type: 'symbol',
             source: 'places-source',
+            minzoom: 14,
             filter: ['!', ['has', 'point_count']],
             layout: {
                 'text-field': ['get', 'title'],
                 'text-font': ['Noto Sans Regular'],
                 'text-offset': [0, 1.2], 
                 'text-anchor': 'top',
-                'text-size': 12
+                'text-size': ['interpolate', ['linear'], ['zoom'], 14, 10, 18, 14]
             },
             paint: {
                 'text-color': '#333333',
@@ -161,7 +164,7 @@ window.loadAlekPlaces = async function(mapInstance) {
             }
         });
 
-        console.log(`✅ تم دمج ${validPlaces.length} مكان بالأيقونات الجديدة!`);
+        console.log(`✅ تم دمج ${validPlaces.length} مكان بالأيقونات الجديدة مع تعديل الحجم!`);
 
     } catch (error) {
         console.error("❌ صار خطأ بتحميل الأماكن:", error);
