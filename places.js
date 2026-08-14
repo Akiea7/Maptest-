@@ -1,5 +1,5 @@
 // =========================================================
-// 📍 ملف places.js - قاعدة بيانات الأماكن مع الأيقونات المخصصة والحجم الديناميكي
+// 📍 ملف places.js - قاعدة بيانات الأماكن (التحديث الشامل لحل الأيقونات)
 // =========================================================
 
 const customIconImages = {
@@ -21,22 +21,29 @@ window.alekPlacesData = [];
 
 window.loadAlekPlaces = async function(mapInstance) {
     try {
-        // 1. تحميل الأيقونات داخل الخريطة أولاً
-        for (const [key, url] of Object.entries(customIconImages)) {
-            if (!mapInstance.hasImage(key)) {
-                mapInstance.loadImage(url, (error, image) => {
-                    if (!error) {
-                        mapInstance.addImage(key, image);
-                    }
-                });
-            }
-        }
+        // 1. إجبار الخريطة على انتظار تحميل كل الأيقونات (لمنع المربعات السوداء)
+        const imagePromises = Object.entries(customIconImages).map(([key, url]) => {
+            return new Promise((resolve) => {
+                if (mapInstance.hasImage(key)) {
+                    resolve();
+                } else {
+                    mapInstance.loadImage(url, (error, image) => {
+                        if (!error) {
+                            mapInstance.addImage(key, image);
+                        } else {
+                            console.warn("تأخير بتحميل الأيقونة:", key);
+                        }
+                        resolve(); // نكمل حتى لو اكو خطأ بصورة وحدة
+                    });
+                }
+            });
+        });
+        await Promise.all(imagePromises); // ننتظر هنا
 
         // 2. جلب بيانات الأماكن
         const response = await fetch('./baghdad_places.json');
         const rawData = await response.json();
         
-        // فلترة الأماكن اللي إحداثياتها صحيحة
         const validPlaces = rawData.filter(place => 
             place.longitude && place.latitude && 
             !isNaN(Number(place.longitude)) && !isNaN(Number(place.latitude))
@@ -45,34 +52,38 @@ window.loadAlekPlaces = async function(mapInstance) {
         window.alekPlacesData = validPlaces;
 
         const features = validPlaces.map(place => {
-            let iconName = 'custom-market'; // الأيقونة الافتراضية
+            let iconName = 'custom-market'; // الأيقونة الافتراضية حالياً (يفضل مستقبلاً ترفع أيقونة دبوس عامة)
             let type = place.type ? place.type.toLowerCase() : "";
             let name = place.name ? place.name.toLowerCase() : "";
-            let searchString = type + " " + name;
+            
+            // 3. الفلتر الذكي: توحيد الحروف العربية (ة/هـ، ي/ى، أ/ا) لضمان دقة البحث
+            let searchString = (type + " " + name).replace(/ة/g, 'ه').replace(/أ|إ|آ/g, 'ا').replace(/ى/g, 'ي');
 
-            // الفلتر الذكي لاختيار الأيقونة
             if (searchString.includes("مطعم") || searchString.includes("restaurant") || searchString.includes("اكلات")) {
                 iconName = "custom-restaurant";
             } else if (searchString.includes("مصرف") || searchString.includes("بنك") || searchString.includes("bank")) {
                 iconName = "custom-bank";
-            } else if (searchString.includes("مستشفى") || searchString.includes("hospital")) {
+            } else if (searchString.includes("مستشفي") || searchString.includes("hospital")) {
                 iconName = "custom-hospital";
-            } else if (searchString.includes("عيادة") || searchString.includes("مجمع طبي") || searchString.includes("صيدلية") || searchString.includes("clinic")) {
+            } else if (searchString.includes("عياده") || searchString.includes("مجمع طبي") || searchString.includes("صيدليه") || searchString.includes("clinic")) {
                 iconName = "custom-clinic";
-            } else if (searchString.includes("جامع") || searchString.includes("مسجد") || searchString.includes("حسينية") || searchString.includes("mosque")) {
+            } else if (searchString.includes("جامع") || searchString.includes("مسجد") || searchString.includes("حسينيه") || searchString.includes("mosque")) {
                 iconName = "custom-mosque";
-            } else if (searchString.includes("مدرسة") || searchString.includes("اعدادية") || searchString.includes("متوسطة") || searchString.includes("school")) {
+            } else if (searchString.includes("مدرسه") || searchString.includes("اعداديه") || searchString.includes("متوسطه") || searchString.includes("school")) {
                 iconName = "custom-school";
-            } else if (searchString.includes("جامعة") || searchString.includes("كلية") || searchString.includes("university")) {
+            } else if (searchString.includes("جامعه") || searchString.includes("كليه") || searchString.includes("university")) {
                 iconName = "custom-university";
-            } else if (searchString.includes("سوبر ماركت") || searchString.includes("اسواق") || searchString.includes("supermarket")) {
+            } else if (searchString.includes("سوبر ماركت") || searchString.includes("اسواق") || searchString.includes("تسوق") || searchString.includes("supermarket")) {
                 iconName = "custom-supermarket";
-            } else if (searchString.includes("مقهى") || searchString.includes("كافيه") || searchString.includes("cafe")) {
+            } else if (searchString.includes("مقهي") || searchString.includes("كافيه") || searchString.includes("cafe")) {
                 iconName = "custom-cafe";
-            } else if (searchString.includes("وقود") || searchString.includes("بنزينخانة") || searchString.includes("محطة")) {
+            } else if (searchString.includes("وقود") || searchString.includes("بنزينخانه") || searchString.includes("محطه")) {
                 iconName = "custom-gas-station";
             } else if (searchString.includes("مخبز") || searchString.includes("فرن") || searchString.includes("معجنات") || searchString.includes("bakery")) {
                 iconName = "custom-bakery";
+            } else if (searchString.includes("ملعب") || searchString.includes("رياضه") || searchString.includes("قاعه") || searchString.includes("منتزه") || searchString.includes("حديقه")) {
+                // إذا لم نجد أيقونة للملاعب والمتنزهات، نضع المدرسة مؤقتاً أو الماركت للتمييز
+                iconName = "custom-market"; 
             }
 
             return {
@@ -106,7 +117,7 @@ window.loadAlekPlaces = async function(mapInstance) {
             id: 'clusters',
             type: 'circle',
             source: 'places-source',
-            minzoom: 13, 
+            minzoom: 13,
             filter: ['has', 'point_count'],
             paint: {
                 'circle-color': '#4285f4',
@@ -135,11 +146,11 @@ window.loadAlekPlaces = async function(mapInstance) {
             id: 'unclustered-point',
             type: 'symbol', 
             source: 'places-source',
-            minzoom: 14, 
+            minzoom: 14,
             filter: ['!', ['has', 'point_count']],
             layout: {
                 'icon-image': ['get', 'icon'], 
-                'icon-size': ['interpolate', ['linear'], ['zoom'], 14, 0.1, 18, 0.2], 
+                'icon-size': 0.07, // 👈 الحجم تم تصغيره بشكل كبير حتى يكون متناسق
                 'icon-allow-overlap': true
             }
         });
@@ -152,19 +163,19 @@ window.loadAlekPlaces = async function(mapInstance) {
             filter: ['!', ['has', 'point_count']],
             layout: {
                 'text-field': ['get', 'title'],
-                'text-font': ['Noto Sans Regular'],
+                'text-font': ['Noto Sans Bold'], // خليت الخط Bold حتى ينقرأ أسهل
                 'text-offset': [0, 1.2], 
                 'text-anchor': 'top',
-                'text-size': ['interpolate', ['linear'], ['zoom'], 14, 10, 18, 14]
+                'text-size': 11
             },
             paint: {
                 'text-color': '#333333',
-                'text-halo-color': '#ffffff',
+                'text-halo-color': 'rgba(255, 255, 255, 0.9)',
                 'text-halo-width': 2
             }
         });
 
-        console.log(`✅ تم دمج ${validPlaces.length} مكان بالأيقونات الجديدة مع تعديل الحجم!`);
+        console.log(`✅ تم دمج الأماكن وحل مشكلة الأيقونات!`);
 
     } catch (error) {
         console.error("❌ صار خطأ بتحميل الأماكن:", error);
