@@ -1,5 +1,5 @@
 // =========================================================
-// 📍 places.js - النسخة الهجينة المضمونة (ذكاء صديقك + أمان التحميل)
+// 📍 places.js - النسخة السريعة (بدون انتظار + حجم إجباري)
 // =========================================================
 
 const customIconImages = {
@@ -20,7 +20,7 @@ const customIconImages = {
 const DEFAULT_ICON = 'custom-market';
 window.alekPlacesData = [];
 
-// 1) تطبيع عربي كامل (نفس كود صديقك)
+// 1) تطبيع عربي كامل
 function normalizeArabic(s) {
     return (s || '')
         .toLowerCase()
@@ -33,7 +33,7 @@ function normalizeArabic(s) {
         .trim();
 }
 
-// 2) قواعد التصنيف الذكية (الأطول والأخص أولاً)
+// 2) قواعد التصنيف الذكية
 const CLASSIFICATION_RULES = [
     ['custom-university', ['جامعه', 'كليه', 'universit', 'college']],
     ['custom-school',     ['مدرسه', 'ابتدائيه', 'ثانويه', 'اعداديه', 'متوسطه', 'روضه', 'اهليه', 'school']],
@@ -49,80 +49,28 @@ const CLASSIFICATION_RULES = [
     ['custom-market',     ['ملعب', 'نادي', 'رياضه', 'قاعه', 'منتزه', 'متنزه', 'حديقه', 'محل', 'بقاليه', 'مركز']]
 ];
 
-function classifyPlace(place, loadedIcons) {
+function classifyPlace(place) {
     const s = normalizeArabic((place.type || '') + ' ' + (place.name || ''));
     for (const [icon, keywords] of CLASSIFICATION_RULES) {
-        if (keywords.some(k => s.includes(k)) && loadedIcons.has(icon)) {
+        if (keywords.some(k => s.includes(k))) {
             return icon;
         }
     }
-    return loadedIcons.has(DEFAULT_ICON) ? DEFAULT_ICON : [...loadedIcons][0];
+    return DEFAULT_ICON;
 }
 
 window.loadAlekPlaces = async function (mapInstance) {
     try {
         if (mapInstance.getSource('places-source')) return;
 
-        // 3) التحميل الآمن وتصغير الصور (تخطي مشكلة الموبايل والـ CORS)
-        const loadedIcons = new Set();
-        const loadPromises = Object.entries(customIconImages).map(([key, url]) => {
-            return new Promise((resolve) => {
-                if (mapInstance.hasImage(key)) {
-                    loadedIcons.add(key);
-                    resolve();
-                    return;
-                }
-
-                const img = new Image();
-                img.crossOrigin = "Anonymous"; // 👈 هذا السطر السحري اللي يمنع كراش المتصفح
-                img.onload = () => {
-                    try {
-                        const ICON_DISPLAY_SIZE = 48; 
-                        const ICON_PIXEL_RATIO  = 2;  
-                        const target = ICON_DISPLAY_SIZE * ICON_PIXEL_RATIO; 
-                        const ratio  = target / Math.max(img.width, img.height);
-                        
-                        const canvas = document.createElement('canvas');
-                        canvas.width  = Math.max(1, Math.round(img.width  * ratio));
-                        canvas.height = Math.max(1, Math.round(img.height * ratio));
-                        const ctx = canvas.getContext('2d');
-                        
-                        ctx.imageSmoothingEnabled = true;
-                        ctx.imageSmoothingQuality = 'high';
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        
-                        mapInstance.addImage(key, canvas, { pixelRatio: ICON_PIXEL_RATIO });
-                        loadedIcons.add(key);
-                    } catch (e) {
-                        // إذا فشل الكانفاس لأي سبب، نضيف الصورة الخام حتى ما تختفي الأماكن
-                        mapInstance.addImage(key, img);
-                        loadedIcons.add(key);
-                    }
-                    resolve();
-                };
-                img.onerror = () => {
-                    console.warn('⚠️ فشل تحميل الأيقونة:', url);
-                    resolve(); 
-                };
-                img.src = url;
-            });
-        });
-
-        await Promise.all(loadPromises);
-
-        if (loadedIcons.size === 0) {
-            console.error("❌ لم يتم تحميل أي أيقونة، الأماكن لن تظهر.");
-            return;
-        }
-
-        // 4) جلب البيانات
+        // 3) تحميل البيانات أولاً (فوراً وبدون انتظار الصور)
         const response  = await fetch('./baghdad_places.json');
         const rawData   = await response.json();
+        
         const validPlaces = rawData.filter(p =>
             p.longitude && p.latitude &&
             !isNaN(Number(p.longitude)) && !isNaN(Number(p.latitude))
         );
-        
         window.alekPlacesData = validPlaces;
 
         const features = validPlaces.map(place => ({
@@ -130,7 +78,7 @@ window.loadAlekPlaces = async function (mapInstance) {
             properties: {
                 title: place.name || 'بدون اسم',
                 type:  place.type || 'غير محدد',
-                icon:  classifyPlace(place, loadedIcons)
+                icon:  classifyPlace(place) // نحدد اسم الأيقونة مسبقاً
             },
             geometry: {
                 type: 'Point',
@@ -138,6 +86,7 @@ window.loadAlekPlaces = async function (mapInstance) {
             }
         }));
 
+        // إضافة المصدر والطبقات مباشرة للخريطة
         mapInstance.addSource('places-source', {
             type: 'geojson',
             data: { type: 'FeatureCollection', features },
@@ -174,8 +123,8 @@ window.loadAlekPlaces = async function (mapInstance) {
             filter: ['!', ['has', 'point_count']],
             layout: {
                 'icon-image': ['get', 'icon'],
-                'icon-size': 1,              // لأننا صغرنا الصورة بالـ Canvas فالحجم هنا 1 مثالي
-                'icon-anchor': 'bottom',     // رأس الدبوس بالضبط عالمكان
+                'icon-size': 1, // الحجم ثابت لأننا راح نصغر الصورة يدوياً
+                'icon-anchor': 'bottom',
                 'icon-allow-overlap': true,
                 'icon-ignore-placement': true
             }
@@ -187,7 +136,7 @@ window.loadAlekPlaces = async function (mapInstance) {
             layout: {
                 'text-field': ['get', 'title'],
                 'text-font': ['Noto Sans Bold'],
-                'text-offset': [0, 0.5],     // تعديل بسيط للنص حتى يضبط وية الدبوس
+                'text-offset': [0, 0.5],
                 'text-anchor': 'top',
                 'text-size': 11
             },
@@ -198,7 +147,36 @@ window.loadAlekPlaces = async function (mapInstance) {
             }
         });
 
-        console.log('✅ تم دمج الأماكن: أحجام موحّدة وتصنيف دقيق بدون مشاكل!');
+        // 4) تحميل الصور بالخلفية وتصغيرها إجبارياً
+        // هذا الكود ما راح يوكف الخريطة، الأيقونات تظهر من تكمل تحميل
+        Object.entries(customIconImages).forEach(([key, url]) => {
+            if (!mapInstance.hasImage(key)) {
+                const img = new Image();
+                // أزلنا crossOrigin لأن الملفات على نفس السيرفر
+                img.onload = () => {
+                    // إنشاء Canvas بحجم صغير وثابت (مثلاً 64 بكسل)
+                    const canvas = document.createElement('canvas');
+                    const TARGET_SIZE = 64; 
+                    canvas.width = TARGET_SIZE;
+                    canvas.height = TARGET_SIZE;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    
+                    // رسم الصورة بحجم 64x64 إجبارياً مهما كان حجمها الأصلي
+                    ctx.drawImage(img, 0, 0, TARGET_SIZE, TARGET_SIZE);
+                    
+                    // إضافتها للخريطة
+                    if (!mapInstance.hasImage(key)) {
+                        mapInstance.addImage(key, canvas);
+                    }
+                };
+                img.src = url;
+            }
+        });
+
+        console.log('✅ تم تحميل بيانات الأماكن، جاري جلب الأيقونات بالخلفية...');
     } catch (error) {
         console.error('❌ صار خطأ بتحميل الأماكن:', error);
     }
